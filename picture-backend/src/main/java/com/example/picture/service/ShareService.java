@@ -186,10 +186,11 @@ public class ShareService {
             Album album = albumRepository.findById(share.getAlbumId()).orElse(null);
             if (album != null) {
                 AlbumDTO albumDTO = albumToDTO(album);
-                Set<Picture> pictures = album.getPictures();
+                List<Picture> pictures = pictureRepository.findByAlbumId(album.getId());
+                Long count = pictureRepository.countByAlbumId(album.getId());
+                albumDTO.setPictureCount(count != null ? count.intValue() : 0);
                 if (pictures != null && !pictures.isEmpty()) {
                     List<PictureDTO> pictureDTOs = pictures.stream()
-                            .sorted(Comparator.comparing(Picture::getCreateTime).reversed())
                             .map(pictureService::toDTO)
                             .collect(Collectors.toList());
                     albumDTO.setPictures(pictureDTOs);

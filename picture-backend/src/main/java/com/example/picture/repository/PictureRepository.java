@@ -32,4 +32,10 @@ public interface PictureRepository extends JpaRepository<Picture, Long> {
     java.util.Date findLastUploadTimeByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
 
     long countByUserId(Long userId);
+
+    @Query("SELECT p FROM Picture p JOIN p.albums a WHERE a.id = :albumId ORDER BY p.createTime DESC")
+    List<Picture> findByAlbumId(@Param("albumId") Long albumId);
+
+    @Query("SELECT COUNT(p) FROM Picture p JOIN p.albums a WHERE a.id = :albumId")
+    Long countByAlbumId(@Param("albumId") Long albumId);
 }

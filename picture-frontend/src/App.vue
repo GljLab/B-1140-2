@@ -623,7 +623,7 @@
                     </div>
                     <div class="mt-2 flex items-center space-x-2">
                       <div class="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-600 font-mono truncate">
-                        {{ window.location.origin + window.location.pathname + share.shareUrl }}
+                        {{ getShareFullUrl(share.shareUrl) }}
                       </div>
                       <button @click="copyShareLink(share)"
                         class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs hover:bg-blue-100 transition">
@@ -1181,7 +1181,7 @@
                 <span class="text-sm font-medium text-green-800">分享链接已生成</span>
               </div>
               <div class="flex items-center space-x-2">
-                <input :value="window.location.origin + window.location.pathname + createdShare.shareUrl" readonly
+                <input :value="getShareFullUrl(createdShare?.shareUrl)" readonly
                   class="flex-1 px-3 py-2 bg-white border border-green-200 rounded-lg text-sm text-gray-700 font-mono" />
                 <button @click="copyCreatedShareLink"
                   class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition">
@@ -1308,6 +1308,17 @@ const tabs = [
   { id: 'stats', name: '统计' },
   { id: 'shares', name: '我的分享' }
 ]
+
+const baseUrl = computed(() => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin + window.location.pathname
+  }
+  return ''
+})
+
+const getShareFullUrl = (shareUrl) => {
+  return baseUrl.value + (shareUrl || '')
+}
 
 const isSharePage = ref(false)
 const currentShareToken = ref('')
@@ -1803,7 +1814,7 @@ const generateShare = async () => {
 
 const copyCreatedShareLink = async () => {
   if (!createdShare.value) return
-  const url = window.location.origin + window.location.pathname + createdShare.value.shareUrl
+  const url = getShareFullUrl(createdShare.value.shareUrl)
   try {
     await navigator.clipboard.writeText(url)
     showToast('链接已复制到剪贴板')
@@ -1813,7 +1824,7 @@ const copyCreatedShareLink = async () => {
 }
 
 const copyShareLink = async (share) => {
-  const url = window.location.origin + window.location.pathname + share.shareUrl
+  const url = getShareFullUrl(share.shareUrl)
   try {
     await navigator.clipboard.writeText(url)
     showToast('链接已复制到剪贴板')
@@ -1850,7 +1861,9 @@ const fetchShares = async () => {
 }
 
 const goHome = () => {
-  window.location.hash = ''
+  if (typeof window !== 'undefined') {
+    window.location.hash = ''
+  }
   isSharePage.value = false
   sharePageData.value = null
   sharePageError.value = ''
@@ -1914,6 +1927,7 @@ const loadSharePage = async (token) => {
 }
 
 const parseHashRoute = () => {
+  if (typeof window === 'undefined') return false
   const hash = window.location.hash
   if (hash.startsWith('#/share/')) {
     const token = hash.replace('#/share/', '')
@@ -1931,7 +1945,9 @@ const parseHashRoute = () => {
   return false
 }
 
-window.addEventListener('hashchange', parseHashRoute)
+if (typeof window !== 'undefined') {
+  window.addEventListener('hashchange', parseHashRoute)
+}
 
 // Picture Detail
 const showPictureDetail = ref(false)
