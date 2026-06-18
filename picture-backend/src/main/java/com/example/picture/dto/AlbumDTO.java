@@ -2,6 +2,7 @@ package com.example.picture.dto;
 
 import lombok.Data;
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class AlbumDTO {
@@ -18,4 +19,5 @@ public class AlbumDTO {
     private Integer pictureCount;
     private Long totalSize;
     private Date lastUploadTime;
+    private List<PictureDTO> pictures;
 }

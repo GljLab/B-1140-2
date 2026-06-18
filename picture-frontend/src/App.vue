@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 font-sans text-gray-700">
-    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20 border-b border-gray-100">
+    <header v-if="!isSharePage" class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20 border-b border-gray-100">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
         <div class="flex items-center space-x-3">
           <div class="w-9 h-9 bg-gradient-to-tr from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold shadow-md">P</div>
@@ -64,8 +64,131 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <!-- Share Page -->
+      <div v-if="isSharePage" class="min-h-[60vh]">
+        <div v-if="sharePageLoading" class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        <div v-else-if="sharePageError" class="flex flex-col items-center justify-center py-20">
+          <div class="text-6xl mb-4">🔒</div>
+          <h3 class="text-xl font-medium text-gray-500 mb-2">{{ sharePageError }}</h3>
+          <button @click="goHome" class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium">
+            返回首页
+          </button>
+        </div>
+        <div v-else-if="sharePageData && sharePageData.hasPassword && !sharePageData.picture && !sharePageData.album">
+          <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mt-20">
+            <div class="text-center mb-6">
+              <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold mb-4">
+                🔒
+              </div>
+              <h3 class="text-xl font-bold text-gray-800 mb-2">{{ sharePageData.title }}</h3>
+              <p class="text-sm text-gray-500">分享者：{{ sharePageData.creator?.nickname || sharePageData.creator?.username }}</p>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">请输入访问密码</label>
+                <input v-model="sharePasswordInput" type="password" placeholder="请输入密码"
+                  @keyup.enter="submitSharePassword"
+                  class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p v-if="sharePasswordError" class="text-xs text-red-500 mt-1">{{ sharePasswordError }}</p>
+              </div>
+              <button @click="submitSharePassword"
+                class="w-full py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition">
+                查看内容
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="sharePageData && sharePageData.picture">
+          <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+              <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-4 text-white">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">
+                      {{ sharePageData.creator?.nickname?.charAt(0).toUpperCase() || 'U' }}
+                    </div>
+                    <div>
+                      <p class="text-sm text-blue-100">分享者</p>
+                      <p class="font-medium">{{ sharePageData.creator?.nickname || sharePageData.creator?.username }}</p>
+                    </div>
+                  </div>
+                  <span class="text-xs bg-white/20 px-3 py-1 rounded-full">图片分享</span>
+                </div>
+              </div>
+              <div class="bg-gray-900 flex items-center justify-center p-8">
+                <img :src="sharePageData.picture.url" class="max-w-full max-h-[70vh] object-contain rounded-lg" />
+              </div>
+              <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">{{ sharePageData.picture.name }}</h2>
+                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                  <span>📅 {{ formatTime(sharePageData.picture.createTime) }}</span>
+                  <span>📦 {{ formatSize(sharePageData.picture.size) }}</span>
+                </div>
+                <div v-if="sharePageData.picture.tags && sharePageData.picture.tags.length > 0" class="mt-4">
+                  <div class="flex flex-wrap gap-1.5">
+                    <span v-for="t in sharePageData.picture.tags" :key="t.id"
+                      class="inline-flex items-center px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
+                      #{{ t.name }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="sharePageData && sharePageData.album">
+          <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-6">
+              <div class="bg-gradient-to-r from-purple-500 to-pink-600 p-6 text-white">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                      {{ sharePageData.creator?.nickname?.charAt(0).toUpperCase() || 'U' }}
+                    </div>
+                    <div>
+                      <p class="text-sm text-purple-100">分享者</p>
+                      <p class="text-lg font-bold">{{ sharePageData.creator?.nickname || sharePageData.creator?.username }}</p>
+                    </div>
+                  </div>
+                  <span class="text-xs bg-white/20 px-4 py-1.5 rounded-full">专辑分享</span>
+                </div>
+              </div>
+              <div class="p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">{{ sharePageData.album.name }}</h2>
+                <p v-if="sharePageData.album.description" class="text-sm text-gray-500 mb-3">{{ sharePageData.album.description }}</p>
+                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                  <span>🖼️ {{ sharePageData.album.pictureCount || 0 }} 张图片</span>
+                  <span>📅 创建于 {{ formatTime(sharePageData.album.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="sharePageData.album.pictures && sharePageData.album.pictures.length > 0">
+              <h3 class="text-lg font-bold text-gray-800 mb-4">相册图片</h3>
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div v-for="pic in sharePageData.album.pictures" :key="pic.id"
+                  class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+                  <div class="aspect-square bg-gray-100 relative overflow-hidden">
+                    <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
+                  </div>
+                  <div class="p-3">
+                    <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+                    <span class="text-xs text-gray-400">{{ formatTime(pic.createTime) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div class="text-6xl mb-4">📭</div>
+              <h3 class="text-xl font-medium text-gray-500">该专辑暂无图片</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Guest landing -->
-      <div v-if="!isLoggedIn" class="flex flex-col items-center justify-center py-20">
+      <div v-else-if="!isLoggedIn" class="flex flex-col items-center justify-center py-20">
         <div class="w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl flex items-center justify-center text-white text-4xl font-bold shadow-2xl mb-8">
           P
         </div>
@@ -317,8 +440,17 @@
                   <span v-if="currentAlbumDetail.lastUploadTime">最近更新: {{ formatTime(currentAlbumDetail.lastUploadTime) }}</span>
                 </div>
               </div>
-              <button @click="openEditAlbum(currentAlbumDetail)"
-                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">编辑专辑</button>
+              <div class="flex items-center space-x-2">
+                <button @click="openShareModal('album', currentAlbumDetail)"
+                  class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition flex items-center space-x-1">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span>分享</span>
+                </button>
+                <button @click="openEditAlbum(currentAlbumDetail)"
+                  class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">编辑专辑</button>
+              </div>
             </div>
           </div>
           <div v-if="loading" class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>
@@ -438,6 +570,74 @@
               </div>
               <div class="p-3">
                 <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHARES -->
+      <div v-else-if="isLoggedIn && activeTab === 'shares'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">我的分享</h2>
+            <p class="text-sm text-gray-500 mt-1">共 {{ myShares.length }} 条分享记录</p>
+          </div>
+        </div>
+        <div v-if="loading" class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        <div v-else-if="myShares.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="text-6xl mb-4">🔗</div>
+          <h3 class="text-xl font-medium text-gray-500 mb-2">暂无分享记录</h3>
+          <p class="text-sm text-gray-400">打开图片或专辑详情，点击"分享"按钮创建分享链接</p>
+        </div>
+        <div v-else class="space-y-4">
+          <div v-for="share in myShares" :key="share.id"
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg transition">
+            <div class="flex items-start space-x-4">
+              <div class="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex-shrink-0">
+                <img v-if="share.coverUrl" :src="share.coverUrl" class="w-full h-full object-cover" />
+                <div v-else class="w-full h-full flex items-center justify-center">
+                  <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <div class="flex items-center space-x-2 mb-1">
+                      <h3 class="font-semibold text-gray-800 truncate">{{ share.title }}</h3>
+                      <span :class="['text-[10px] px-2 py-0.5 rounded-full',
+                        share.shareType === 'picture' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700']">
+                        {{ share.shareType === 'picture' ? '图片' : '专辑' }}
+                      </span>
+                      <span v-if="share.expired" class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">已过期</span>
+                      <span v-if="share.hasPassword" class="text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">🔒 密码保护</span>
+                    </div>
+                    <div class="flex items-center space-x-4 text-xs text-gray-500">
+                      <span>创建时间：{{ formatTime(share.createTime) }}</span>
+                      <span>有效期：{{ share.expireDays === 0 ? '永久' : share.expireDays + '天' }}</span>
+                      <span>访问次数：{{ share.viewCount }} 次</span>
+                    </div>
+                    <div class="mt-2 flex items-center space-x-2">
+                      <div class="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-600 font-mono truncate">
+                        {{ window.location.origin + window.location.pathname + share.shareUrl }}
+                      </div>
+                      <button @click="copyShareLink(share)"
+                        class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs hover:bg-blue-100 transition">
+                        复制链接
+                      </button>
+                    </div>
+                  </div>
+                  <button @click="confirmDeleteShare(share)"
+                    class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="删除分享">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -769,7 +969,16 @@
           <img :src="currentPicture.url" class="max-w-full max-h-[50vh] lg:max-h-[80vh] object-contain rounded-lg" />
         </div>
         <div class="lg:w-1/2 p-6 overflow-y-auto">
-          <h3 class="text-xl font-bold text-gray-800 mb-1">{{ currentPicture.name }}</h3>
+          <div class="flex items-start justify-between mb-1">
+            <h3 class="text-xl font-bold text-gray-800">{{ currentPicture.name }}</h3>
+            <button @click="openShareModal('picture', currentPicture)"
+              class="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-xs font-medium hover:shadow-lg transition flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              <span>分享</span>
+            </button>
+          </div>
           <p class="text-xs text-gray-500 mb-4">
             {{ formatTime(currentPicture.createTime) }} · {{ formatSize(currentPicture.size) }}
           </p>
@@ -919,6 +1128,95 @@
       </div>
     </div>
 
+    <!-- Share Modal -->
+    <div v-if="showShareModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeShareModal"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">分享设置</h3>
+          <button @click="closeShareModal" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-5">
+          <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl">
+            <div class="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex-shrink-0">
+              <img v-if="shareTarget.coverUrl" :src="shareTarget.coverUrl" class="w-full h-full object-cover" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-800 truncate">{{ shareTarget.title }}</p>
+              <p class="text-xs text-gray-500">{{ shareTarget.type === 'picture' ? '图片分享' : '专辑分享' }}</p>
+            </div>
+          </div>
+
+          <div v-if="!createdShare">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">有效期</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button v-for="opt in expireOptions" :key="opt.value" @click="shareForm.expireDays = opt.value"
+                  :class="['py-2 px-3 rounded-lg text-sm font-medium transition border',
+                    shareForm.expireDays === opt.value
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300']">
+                  {{ opt.label }}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">访问密码 <span class="text-gray-400 text-xs">(可选)</span></label>
+              <input v-model="shareForm.password" type="text" placeholder="不设置则无需密码即可访问"
+                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p class="text-xs text-gray-400 mt-1">设置密码后，访问者需要输入密码才能查看</p>
+            </div>
+          </div>
+
+          <div v-else class="space-y-4">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div class="flex items-center space-x-2 mb-2">
+                <svg class="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm font-medium text-green-800">分享链接已生成</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <input :value="window.location.origin + window.location.pathname + createdShare.shareUrl" readonly
+                  class="flex-1 px-3 py-2 bg-white border border-green-200 rounded-lg text-sm text-gray-700 font-mono" />
+                <button @click="copyCreatedShareLink"
+                  class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition">
+                  复制
+                </button>
+              </div>
+            </div>
+            <div v-if="createdShare.hasPassword" class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-xs text-yellow-800">
+                🔒 已设置访问密码：<span class="font-mono font-bold">{{ shareForm.password }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+          <button v-if="!createdShare" @click="closeShareModal"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">取消</button>
+          <button v-if="!createdShare" @click="generateShare" :disabled="shareGenerating"
+            :class="['px-5 py-2 rounded-lg font-medium text-sm transition shadow-md',
+              shareGenerating ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-lg']">
+            <span v-if="shareGenerating" class="flex items-center space-x-1.5">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>生成中...</span>
+            </span>
+            <span v-else>生成分享链接</span>
+          </button>
+          <button v-if="createdShare" @click="closeShareModal"
+            class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium text-sm hover:shadow-lg transition">完成</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Generic Confirm Modal -->
     <div v-if="confirmModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="confirmModal.show = false"></div>
@@ -1007,8 +1305,12 @@ const tabs = [
   { id: 'pictures', name: '图片墙' },
   { id: 'albums', name: '专辑' },
   { id: 'tags', name: '主题词' },
-  { id: 'stats', name: '统计' }
+  { id: 'stats', name: '统计' },
+  { id: 'shares', name: '我的分享' }
 ]
+
+const isSharePage = ref(false)
+const currentShareToken = ref('')
 
 const activeTab = ref('pictures')
 const loading = ref(false)
@@ -1127,6 +1429,24 @@ const pictures = ref([])
 const allAlbums = ref([])
 const allTags = ref([])
 const globalStats = ref({})
+const myShares = ref([])
+
+// Share modal
+const showShareModal = ref(false)
+const shareTarget = ref({ type: '', id: null, title: '', coverUrl: '' })
+const shareForm = reactive({
+  expireDays: 0,
+  password: ''
+})
+const createdShare = ref(null)
+const shareGenerating = ref(false)
+
+// Share page
+const sharePageData = ref(null)
+const sharePageLoading = ref(false)
+const sharePasswordInput = ref('')
+const sharePasswordError = ref('')
+const sharePageError = ref('')
 
 // Filter / select
 const filterAlbumId = ref(null)
@@ -1428,6 +1748,191 @@ const confirmDeleteTag = (tag) => {
   })
 }
 
+// Share
+const expireOptions = [
+  { value: 0, label: '永久' },
+  { value: 7, label: '7天' },
+  { value: 3, label: '3天' },
+  { value: 1, label: '1天' }
+]
+
+const openShareModal = (type, target) => {
+  shareTarget.value = {
+    type: type,
+    id: target.id,
+    title: target.name,
+    coverUrl: target.url || target.coverUrl
+  }
+  shareForm.expireDays = 0
+  shareForm.password = ''
+  createdShare.value = null
+  showShareModal.value = true
+}
+
+const closeShareModal = () => {
+  showShareModal.value = false
+  shareTarget.value = { type: '', id: null, title: '', coverUrl: '' }
+  shareForm.expireDays = 0
+  shareForm.password = ''
+  createdShare.value = null
+}
+
+const generateShare = async () => {
+  shareGenerating.value = true
+  try {
+    const res = await api.post('/shares', {
+      shareType: shareTarget.value.type,
+      pictureId: shareTarget.value.type === 'picture' ? shareTarget.value.id : null,
+      albumId: shareTarget.value.type === 'album' ? shareTarget.value.id : null,
+      password: shareForm.password.trim() || null,
+      expireDays: shareForm.expireDays
+    })
+    if (res.data.success) {
+      createdShare.value = res.data.data
+      showToast('分享链接已生成')
+      await fetchShares()
+    } else {
+      showToast(res.data.message || '生成失败', 'error')
+    }
+  } catch (e) {
+    showToast('生成失败', 'error')
+  } finally {
+    shareGenerating.value = false
+  }
+}
+
+const copyCreatedShareLink = async () => {
+  if (!createdShare.value) return
+  const url = window.location.origin + window.location.pathname + createdShare.value.shareUrl
+  try {
+    await navigator.clipboard.writeText(url)
+    showToast('链接已复制到剪贴板')
+  } catch (e) {
+    showToast('复制失败，请手动复制', 'error')
+  }
+}
+
+const copyShareLink = async (share) => {
+  const url = window.location.origin + window.location.pathname + share.shareUrl
+  try {
+    await navigator.clipboard.writeText(url)
+    showToast('链接已复制到剪贴板')
+  } catch (e) {
+    showToast('复制失败，请手动复制', 'error')
+  }
+}
+
+const confirmDeleteShare = (share) => {
+  openConfirm({
+    title: `删除分享"${share.title}"?`,
+    message: '删除后分享链接将立即失效，不可恢复。',
+    type: 'danger',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/shares/${share.id}`)
+        if (res.data.success) {
+          showToast('分享已删除')
+          confirmModal.show = false
+          await fetchShares()
+        } else showToast(res.data.message || '删除失败', 'error')
+      } catch (e) { showToast('删除失败', 'error') }
+    }
+  })
+}
+
+const fetchShares = async () => {
+  try {
+    const res = await api.get('/shares')
+    if (res.data.success) {
+      myShares.value = res.data.data || []
+    }
+  } catch (e) {}
+}
+
+const goHome = () => {
+  window.location.hash = ''
+  isSharePage.value = false
+  sharePageData.value = null
+  sharePageError.value = ''
+  sharePasswordInput.value = ''
+  sharePasswordError.value = ''
+}
+
+const submitSharePassword = async () => {
+  if (!sharePasswordInput.value.trim()) {
+    sharePasswordError.value = '请输入密码'
+    return
+  }
+  sharePasswordError.value = ''
+  sharePageLoading.value = true
+  try {
+    const res = await api.post(`/shares/${currentShareToken.value}/access`, {
+      password: sharePasswordInput.value
+    })
+    if (res.data.success) {
+      sharePageData.value = res.data.data
+    } else {
+      sharePasswordError.value = res.data.message || '密码错误'
+    }
+  } catch (e) {
+    sharePasswordError.value = '验证失败，请重试'
+  } finally {
+    sharePageLoading.value = false
+  }
+}
+
+const loadSharePage = async (token) => {
+  sharePageLoading.value = true
+  sharePageError.value = ''
+  sharePageData.value = null
+  sharePasswordInput.value = ''
+  sharePasswordError.value = ''
+  try {
+    const res = await api.get(`/shares/${token}`)
+    if (res.data.success) {
+      const info = res.data.data
+      if (info.expired) {
+        sharePageError.value = '分享已过期'
+      } else if (info.hasPassword) {
+        sharePageData.value = info
+      } else {
+        const accessRes = await api.post(`/shares/${token}/access`)
+        if (accessRes.data.success) {
+          sharePageData.value = accessRes.data.data
+        } else {
+          sharePageError.value = accessRes.data.message || '无法访问该分享'
+        }
+      }
+    } else {
+      sharePageError.value = res.data.message || '分享链接不存在'
+    }
+  } catch (e) {
+    sharePageError.value = '加载失败，请稍后重试'
+  } finally {
+    sharePageLoading.value = false
+  }
+}
+
+const parseHashRoute = () => {
+  const hash = window.location.hash
+  if (hash.startsWith('#/share/')) {
+    const token = hash.replace('#/share/', '')
+    if (token) {
+      isSharePage.value = true
+      currentShareToken.value = token
+      loadSharePage(token)
+      return true
+    }
+  } else {
+    isSharePage.value = false
+    sharePageData.value = null
+    sharePageError.value = ''
+  }
+  return false
+}
+
+window.addEventListener('hashchange', parseHashRoute)
+
 // Picture Detail
 const showPictureDetail = ref(false)
 const currentPicture = ref({})
@@ -1610,7 +2115,7 @@ const fetchStats = async () => {
   } catch (e) {}
 }
 const fetchAll = async () => {
-  await Promise.all([fetchPictures(), fetchAlbums(), fetchTags(), fetchStats()])
+  await Promise.all([fetchPictures(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares()])
 }
 
 // Watch tab changes
@@ -1620,12 +2125,15 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'albums') await fetchAlbums()
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
+  if (newVal === 'shares') await fetchShares()
 })
 
 onMounted(async () => {
-  const loggedIn = await checkAuth()
-  if (loggedIn) {
-    await fetchAll()
+  if (!parseHashRoute()) {
+    const loggedIn = await checkAuth()
+    if (loggedIn) {
+      await fetchAll()
+    }
   }
 })
 </script>
