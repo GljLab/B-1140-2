@@ -1,5 +1,6 @@
 package com.example.picture.service;
 
+import com.example.picture.context.UserContext;
 import com.example.picture.dto.*;
 import com.example.picture.entity.Album;
 import com.example.picture.entity.Picture;
@@ -52,7 +53,9 @@ public class PictureService {
     }
 
     @Transactional
-    public PictureDTO upload(MultipartFile file, List<Long> albumIds, List<String> tagNames) throws IOException {
+    public PictureDTO upload(MultipartFile file, List<Long> albumIds, List<String> tagNames, Long userId) throws IOException {
+        albumService.ensureDefaultAlbum(userId);
+
         String originalName = file.getOriginalFilename();
         String suffix = "";
         if (originalName != null && originalName.contains(".")) {
@@ -63,6 +66,7 @@ public class PictureService {
         Files.write(path, file.getBytes());
 
         Picture picture = new Picture();
+        picture.setUserId(userId);
         picture.setName(originalName);
         picture.setUrl("/images/" + fileName);
         picture.setSize(file.getSize());
@@ -70,11 +74,11 @@ public class PictureService {
         Set<Album> albums = new HashSet<>();
         if (albumIds != null && !albumIds.isEmpty()) {
             for (Long aid : albumIds) {
-                albumRepository.findById(aid).ifPresent(albums::add);
+                albumRepository.findByIdAndUserId(aid, userId).ifPresent(albums::add);
             }
         }
         if (albums.isEmpty()) {
-            albums.add(albumService.getDefaultAlbum());
+            albums.add(albumService.getDefaultAlbum(userId));
         }
         picture.setAlbums(albums);
 
@@ -86,7 +90,7 @@ public class PictureService {
                 for (String part : parts) {
                     String trimmed = part.trim();
                     if (!trimmed.isEmpty()) {
-                        Tag tag = tagService.getOrCreateTag(trimmed);
+                        Tag tag = tagService.getOrCreateTag(trimmed, userId);
                         if (tag != null) {
                             tags.add(tag);
                         }
@@ -103,38 +107,42 @@ public class PictureService {
         return toDTO(saved);
     }
 
-    public List<PictureDTO> listPictures(Long albumId, Long tagId, String keyword) {
+    public List<PictureDTO> listPictures(Long albumId, Long tagId, String keyword, Long userId) {
         List<Picture> pictures;
         if (albumId != null) {
-            pictures = pictureRepository.findByAlbumId(albumId);
+            pictures = pictureRepository.findByAlbumIdAndUserId(albumId, userId);
         } else if (tagId != null) {
-            pictures = pictureRepository.findByTagId(tagId);
+            pictures = pictureRepository.findByTagIdAndUserId(tagId, userId);
         } else if (keyword != null && !keyword.trim().isEmpty()) {
-            pictures = pictureRepository.findByNameContainingKeyword(keyword.trim());
+            pictures = pictureRepository.findByNameContainingKeywordAndUserId(keyword.trim(), userId);
         } else {
-            pictures = pictureRepository.findAllByOrderByCreateTimeDesc();
+            pictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
         }
         return pictures.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public PictureDTO getPicture(Long id) {
-        Picture picture = pictureRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("图片不存在"));
+    public PictureDTO getPicture(Long id, Long userId) {
+        Picture picture = pictureRepository.findById(id).orElse(null);
+        if (picture == null || !picture.getUserId().equals(userId)) {
+            throw new RuntimeException("图片不存在");
+        }
         return toDTO(picture);
     }
 
     @Transactional
-    public PictureDTO updatePicture(Long id, PictureUpdateRequest request) {
-        Picture picture = pictureRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("图片不存在"));
+    public PictureDTO updatePicture(Long id, PictureUpdateRequest request, Long userId) {
+        Picture picture = pictureRepository.findById(id).orElse(null);
+        if (picture == null || !picture.getUserId().equals(userId)) {
+            throw new RuntimeException("图片不存在");
+        }
 
         if (request.getAlbumIds() != null) {
             Set<Album> newAlbums = new HashSet<>();
             for (Long aid : request.getAlbumIds()) {
-                albumRepository.findById(aid).ifPresent(newAlbums::add);
+                albumRepository.findByIdAndUserId(aid, userId).ifPresent(newAlbums::add);
             }
             if (newAlbums.isEmpty()) {
-                newAlbums.add(albumService.getDefaultAlbum());
+                newAlbums.add(albumService.getDefaultAlbum(userId));
             }
             picture.setAlbums(newAlbums);
         }
@@ -152,7 +160,7 @@ public class PictureService {
             }
             Set<Tag> newTags = new HashSet<>();
             for (String name : newTagNames) {
-                Tag tag = tagService.getOrCreateTag(name);
+                Tag tag = tagService.getOrCreateTag(name, userId);
                 if (tag != null) {
                     newTags.add(tag);
                     if (!oldTags.contains(tag)) {
@@ -173,22 +181,24 @@ public class PictureService {
     }
 
     @Transactional
-    public void deletePicture(Long id) {
-        pictureRepository.findById(id).ifPresent(picture -> {
-            for (Tag tag : picture.getTags()) {
-                tagService.decrementReferenceCount(tag);
-            }
-            String fileName = picture.getUrl().replace("/images/", "");
-            File file = new File(uploadPath + fileName);
-            if (file.exists()) {
-                file.delete();
-            }
-            pictureRepository.delete(picture);
-        });
+    public void deletePicture(Long id, Long userId) {
+        Picture picture = pictureRepository.findById(id).orElse(null);
+        if (picture == null || !picture.getUserId().equals(userId)) {
+            return;
+        }
+        for (Tag tag : picture.getTags()) {
+            tagService.decrementReferenceCount(tag);
+        }
+        String fileName = picture.getUrl().replace("/images/", "");
+        File file = new File(uploadPath + fileName);
+        if (file.exists()) {
+            file.delete();
+        }
+        pictureRepository.delete(picture);
     }
 
     @Transactional
-    public void batchAddTags(BatchTagRequest request) {
+    public void batchAddTags(BatchTagRequest request, Long userId) {
         if (request.getPictureIds() == null || request.getTagNames() == null) return;
         List<Tag> tagsToAdd = new ArrayList<>();
         Set<String> processed = new HashSet<>();
@@ -199,44 +209,44 @@ public class PictureService {
                 String trimmed = part.trim();
                 if (!trimmed.isEmpty() && !processed.contains(trimmed)) {
                     processed.add(trimmed);
-                    Tag tag = tagService.getOrCreateTag(trimmed);
+                    Tag tag = tagService.getOrCreateTag(trimmed, userId);
                     if (tag != null) tagsToAdd.add(tag);
                 }
             }
         }
         for (Long pid : request.getPictureIds()) {
-            pictureRepository.findById(pid).ifPresent(picture -> {
-                for (Tag tag : tagsToAdd) {
-                    if (!picture.getTags().contains(tag)) {
-                        picture.getTags().add(tag);
-                        tagService.incrementReferenceCount(tag);
-                    }
+            Picture picture = pictureRepository.findById(pid).orElse(null);
+            if (picture == null || !picture.getUserId().equals(userId)) continue;
+            for (Tag tag : tagsToAdd) {
+                if (!picture.getTags().contains(tag)) {
+                    picture.getTags().add(tag);
+                    tagService.incrementReferenceCount(tag);
                 }
-                pictureRepository.save(picture);
-            });
+            }
+            pictureRepository.save(picture);
         }
     }
 
     @Transactional
-    public void batchAddToAlbum(BatchAlbumRequest request) {
+    public void batchAddToAlbum(BatchAlbumRequest request, Long userId) {
         if (request.getPictureIds() == null || request.getAlbumId() == null) return;
-        Album album = albumRepository.findById(request.getAlbumId()).orElse(null);
+        Album album = albumRepository.findByIdAndUserId(request.getAlbumId(), userId).orElse(null);
         if (album == null) return;
         for (Long pid : request.getPictureIds()) {
-            pictureRepository.findById(pid).ifPresent(picture -> {
-                if (!picture.getAlbums().contains(album)) {
-                    picture.getAlbums().add(album);
-                    pictureRepository.save(picture);
-                }
-            });
+            Picture picture = pictureRepository.findById(pid).orElse(null);
+            if (picture == null || !picture.getUserId().equals(userId)) continue;
+            if (!picture.getAlbums().contains(album)) {
+                picture.getAlbums().add(album);
+                pictureRepository.save(picture);
+            }
         }
     }
 
     @Transactional
-    public void batchDelete(BatchDeleteRequest request) {
+    public void batchDelete(BatchDeleteRequest request, Long userId) {
         if (request.getPictureIds() == null) return;
         for (Long pid : request.getPictureIds()) {
-            deletePicture(pid);
+            deletePicture(pid, userId);
         }
     }
 

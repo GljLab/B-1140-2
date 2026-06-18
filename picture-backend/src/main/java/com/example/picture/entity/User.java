@@ -4,38 +4,25 @@ import lombok.Getter;
 import lombok.Setter;
 import javax.persistence.*;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 @Getter
 @Setter
 @Entity
-public class Album {
+@Table(name = "user")
+public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
+    @Column(nullable = false, unique = true, length = 50)
+    private String username;
 
     @Column(nullable = false, length = 100)
-    private String name;
+    private String password;
 
-    @Column(length = 500)
-    private String description;
-
-    private String coverUrl;
-
-    private Long coverPictureId;
-
-    @Column(nullable = false)
-    private Boolean isPublic = true;
-
-    @Column(nullable = false)
-    private Boolean isDefault = false;
-
-    @Column(nullable = false)
-    private Integer displayOrder = 0;
+    @Column(length = 50)
+    private String nickname;
 
     @Temporal(TemporalType.TIMESTAMP)
     private Date createTime;
@@ -43,13 +30,13 @@ public class Album {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updateTime;
 
-    @ManyToMany(mappedBy = "albums", fetch = FetchType.LAZY)
-    private Set<Picture> pictures = new HashSet<>();
-
     @PrePersist
     protected void onCreate() {
         createTime = new Date();
         updateTime = new Date();
+        if (nickname == null || nickname.trim().isEmpty()) {
+            nickname = username;
+        }
     }
 
     @PreUpdate
@@ -60,9 +47,9 @@ public class Album {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Album)) return false;
-        Album album = (Album) o;
-        return id != null && id.equals(album.getId());
+        if (!(o instanceof User)) return false;
+        User user = (User) o;
+        return id != null && id.equals(user.getId());
     }
 
     @Override

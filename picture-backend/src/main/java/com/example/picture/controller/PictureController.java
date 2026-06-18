@@ -1,5 +1,6 @@
 package com.example.picture.controller;
 
+import com.example.picture.context.UserContext;
 import com.example.picture.dto.*;
 import com.example.picture.service.PictureService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,9 +25,10 @@ public class PictureController {
             @RequestParam(value = "albumIds", required = false) Long[] albumIds,
             @RequestParam(value = "tags", required = false) String[] tags) throws IOException {
         try {
+            Long userId = UserContext.getCurrentUserId();
             List<Long> albumIdList = albumIds != null ? Arrays.asList(albumIds) : null;
             List<String> tagList = tags != null ? Arrays.asList(tags) : null;
-            return ResponseEntity.ok(ApiResponse.success(pictureService.upload(file, albumIdList, tagList)));
+            return ResponseEntity.ok(ApiResponse.success(pictureService.upload(file, albumIdList, tagList, userId)));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -37,13 +39,15 @@ public class PictureController {
             @RequestParam(value = "albumId", required = false) Long albumId,
             @RequestParam(value = "tagId", required = false) Long tagId,
             @RequestParam(value = "keyword", required = false) String keyword) {
-        return ResponseEntity.ok(ApiResponse.success(pictureService.listPictures(albumId, tagId, keyword)));
+        Long userId = UserContext.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(pictureService.listPictures(albumId, tagId, keyword, userId)));
     }
 
     @GetMapping("/pictures/{id}")
     public ResponseEntity<ApiResponse<PictureDTO>> get(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(ApiResponse.success(pictureService.getPicture(id)));
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.getPicture(id, userId)));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -52,7 +56,8 @@ public class PictureController {
     @PutMapping("/pictures/{id}")
     public ResponseEntity<ApiResponse<PictureDTO>> update(@PathVariable Long id, @RequestBody PictureUpdateRequest request) {
         try {
-            return ResponseEntity.ok(ApiResponse.success(pictureService.updatePicture(id, request)));
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.updatePicture(id, request, userId)));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -61,7 +66,8 @@ public class PictureController {
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
-            pictureService.deletePicture(id);
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.deletePicture(id, userId);
             return ResponseEntity.ok(ApiResponse.success("删除成功", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
@@ -71,7 +77,8 @@ public class PictureController {
     @PostMapping("/pictures/batch-tags")
     public ResponseEntity<ApiResponse<Void>> batchAddTags(@RequestBody BatchTagRequest request) {
         try {
-            pictureService.batchAddTags(request);
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.batchAddTags(request, userId);
             return ResponseEntity.ok(ApiResponse.success("批量添加成功", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
@@ -81,7 +88,8 @@ public class PictureController {
     @PostMapping("/pictures/batch-album")
     public ResponseEntity<ApiResponse<Void>> batchAddAlbum(@RequestBody BatchAlbumRequest request) {
         try {
-            pictureService.batchAddToAlbum(request);
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.batchAddToAlbum(request, userId);
             return ResponseEntity.ok(ApiResponse.success("批量添加成功", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
@@ -91,7 +99,8 @@ public class PictureController {
     @PostMapping("/pictures/batch-delete")
     public ResponseEntity<ApiResponse<Void>> batchDelete(@RequestBody BatchDeleteRequest request) {
         try {
-            pictureService.batchDelete(request);
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.batchDelete(request, userId);
             return ResponseEntity.ok(ApiResponse.success("批量删除成功", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));

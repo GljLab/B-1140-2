@@ -1,10 +1,13 @@
 com\example\picture\service\StatsService.class
 com\example\picture\repository\AlbumRepository.class
+com\example\picture\repository\UserRepository.class
 com\example\picture\dto\BatchDeleteRequest.class
+com\example\picture\interceptor\LoginInterceptor.class
 com\example\picture\config\WebConfig.class
 com\example\picture\service\TagService.class
 com\example\picture\controller\TagController.class
 com\example\picture\dto\TagDTO.class
+com\example\picture\controller\UserController.class
 com\example\picture\controller\StatsController.class
 com\example\picture\dto\AlbumUpdateRequest.class
 com\example\picture\controller\AlbumController.class
@@ -18,7 +21,13 @@ com\example\picture\dto\AlbumSimpleDTO.class
 com\example\picture\dto\AlbumDTO.class
 com\example\picture\dto\UploadRequest.class
 com\example\picture\dto\BatchTagRequest.class
+com\example\picture\dto\UserDTO.class
+com\example\picture\dto\RegisterRequest.class
+com\example\picture\context\UserContext.class
+com\example\picture\entity\User.class
+com\example\picture\service\UserService.class
 com\example\picture\entity\Tag.class
+com\example\picture\dto\LoginRequest.class
 com\example\picture\dto\PictureDTO.class
 com\example\picture\dto\PictureUpdateRequest.class
 com\example\picture\service\AlbumService.class

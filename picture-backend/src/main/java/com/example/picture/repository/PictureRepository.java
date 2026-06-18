@@ -7,26 +7,29 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface PictureRepository extends JpaRepository<Picture, Long> {
-    @Query("SELECT p FROM Picture p JOIN p.albums a WHERE a.id = :albumId ORDER BY p.createTime DESC")
-    List<Picture> findByAlbumId(@Param("albumId") Long albumId);
 
-    @Query("SELECT p FROM Picture p JOIN p.tags t WHERE t.id = :tagId ORDER BY p.createTime DESC")
-    List<Picture> findByTagId(@Param("tagId") Long tagId);
+    @Query("SELECT p FROM Picture p JOIN p.albums a WHERE a.id = :albumId AND p.userId = :userId ORDER BY p.createTime DESC")
+    List<Picture> findByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
 
-    @Query("SELECT p FROM Picture p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.createTime DESC")
-    List<Picture> findByNameContainingKeyword(@Param("keyword") String keyword);
+    @Query("SELECT p FROM Picture p JOIN p.tags t WHERE t.id = :tagId AND p.userId = :userId ORDER BY p.createTime DESC")
+    List<Picture> findByTagIdAndUserId(@Param("tagId") Long tagId, @Param("userId") Long userId);
 
-    @Query("SELECT COALESCE(SUM(p.size), 0) FROM Picture p")
-    Long sumAllSizes();
+    @Query("SELECT p FROM Picture p WHERE p.userId = :userId AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.createTime DESC")
+    List<Picture> findByNameContainingKeywordAndUserId(@Param("keyword") String keyword, @Param("userId") Long userId);
 
-    @Query("SELECT COALESCE(SUM(p.size), 0) FROM Picture p JOIN p.albums a WHERE a.id = :albumId")
-    Long sumSizesByAlbumId(@Param("albumId") Long albumId);
+    List<Picture> findByUserIdOrderByCreateTimeDesc(Long userId);
 
-    @Query("SELECT COUNT(p) FROM Picture p JOIN p.albums a WHERE a.id = :albumId")
-    Long countByAlbumId(@Param("albumId") Long albumId);
+    @Query("SELECT COALESCE(SUM(p.size), 0) FROM Picture p WHERE p.userId = :userId")
+    Long sumAllSizesByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT MAX(p.createTime) FROM Picture p JOIN p.albums a WHERE a.id = :albumId")
-    java.util.Date findLastUploadTimeByAlbumId(@Param("albumId") Long albumId);
+    @Query("SELECT COALESCE(SUM(p.size), 0) FROM Picture p JOIN p.albums a WHERE a.id = :albumId AND p.userId = :userId")
+    Long sumSizesByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
 
-    List<Picture> findAllByOrderByCreateTimeDesc();
+    @Query("SELECT COUNT(p) FROM Picture p JOIN p.albums a WHERE a.id = :albumId AND p.userId = :userId")
+    Long countByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
+
+    @Query("SELECT MAX(p.createTime) FROM Picture p JOIN p.albums a WHERE a.id = :albumId AND p.userId = :userId")
+    java.util.Date findLastUploadTimeByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
+
+    long countByUserId(Long userId);
 }

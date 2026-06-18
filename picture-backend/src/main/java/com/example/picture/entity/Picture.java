@@ -14,6 +14,10 @@ public class Picture {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
+    private Long userId;
+
     private String name;
     private String url;
     private Long size;

@@ -18,18 +18,19 @@ public class TagService {
     private TagRepository tagRepository;
 
     @Transactional
-    public Tag getOrCreateTag(String name) {
+    public Tag getOrCreateTag(String name, Long userId) {
         if (name == null) return null;
         String trimmed = name.trim();
         if (trimmed.isEmpty()) return null;
         if (trimmed.length() > 50) {
             trimmed = trimmed.substring(0, 50);
         }
-        Optional<Tag> existing = tagRepository.findByName(trimmed);
+        Optional<Tag> existing = tagRepository.findByUserIdAndName(userId, trimmed);
         if (existing.isPresent()) {
             return existing.get();
         }
         Tag tag = new Tag();
+        tag.setUserId(userId);
         tag.setName(trimmed);
         tag.setReferenceCount(0);
         return tagRepository.save(tag);
@@ -49,31 +50,26 @@ public class TagService {
         tagRepository.save(tag);
     }
 
-    public List<TagDTO> listTags(String sortBy) {
-        List<Tag> tags;
-        if ("hot".equals(sortBy)) {
-            tags = tagRepository.findAllByOrderByReferenceCountDescCreateTimeDesc();
-        } else {
-            tags = tagRepository.findAllByOrderByReferenceCountDescCreateTimeDesc();
-        }
+    public List<TagDTO> listTags(Long userId, String sortBy) {
+        List<Tag> tags = tagRepository.findByUserIdOrderByReferenceCountDescCreateTimeDesc(userId);
         return tags.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public TagDTO getTag(Long id) {
-        Tag tag = tagRepository.findById(id)
+    public TagDTO getTag(Long id, Long userId) {
+        Tag tag = tagRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new RuntimeException("主题词不存在"));
         return toDTO(tag);
     }
 
-    public TagDTO getTagByName(String name) {
-        Tag tag = tagRepository.findByName(name)
+    public TagDTO getTagByName(String name, Long userId) {
+        Tag tag = tagRepository.findByUserIdAndName(userId, name)
                 .orElseThrow(() -> new RuntimeException("主题词不存在"));
         return toDTO(tag);
     }
 
     @Transactional
-    public void deleteTag(Long id) {
-        Tag tag = tagRepository.findById(id)
+    public void deleteTag(Long id, Long userId) {
+        Tag tag = tagRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new RuntimeException("主题词不存在"));
         if (tag.getReferenceCount() > 0) {
             throw new RuntimeException("该主题词仍被引用，无法删除");
@@ -81,20 +77,20 @@ public class TagService {
         tagRepository.delete(tag);
     }
 
-    public List<TagDTO> searchTags(String keyword) {
+    public List<TagDTO> searchTags(String keyword, Long userId) {
         if (keyword == null || keyword.trim().isEmpty()) {
-            return listTags("hot");
+            return listTags(userId, "hot");
         }
-        List<Tag> tags = tagRepository.findByNameContainingIgnoreCaseOrderByReferenceCountDesc(keyword.trim());
+        List<Tag> tags = tagRepository.findByUserIdAndNameContainingIgnoreCaseOrderByReferenceCountDesc(userId, keyword.trim());
         return tags.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public List<TagDTO> getTopTags(int limit) {
-        List<Tag> tags = tagRepository.findTop10ByOrderByReferenceCountDesc(PageRequest.of(0, limit));
+    public List<TagDTO> getTopTags(int limit, Long userId) {
+        List<Tag> tags = tagRepository.findTopByUserIdOrderByReferenceCountDesc(userId, PageRequest.of(0, limit));
         return tags.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public List<TagDTO> parseAndCreateTags(List<String> tagNames) {
+    public List<TagDTO> parseAndCreateTags(List<String> tagNames, Long userId) {
         if (tagNames == null || tagNames.isEmpty()) return new ArrayList<>();
         List<TagDTO> result = new ArrayList<>();
         Set<String> processed = new HashSet<>();
@@ -105,7 +101,7 @@ public class TagService {
                 String trimmed = part.trim();
                 if (!trimmed.isEmpty() && !processed.contains(trimmed)) {
                     processed.add(trimmed);
-                    Tag tag = getOrCreateTag(trimmed);
+                    Tag tag = getOrCreateTag(trimmed, userId);
                     if (tag != null) {
                         result.add(toDTO(tag));
                     }

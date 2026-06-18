@@ -27,29 +27,92 @@
             </span>
           </button>
         </nav>
-        <div class="flex items-center space-x-2">
-          <div class="relative">
+        <div class="flex items-center space-x-3">
+          <div class="relative" v-if="isLoggedIn">
             <input v-model="globalSearch" type="text" placeholder="搜索图片/专辑/主题词..."
               @keyup.enter="doGlobalSearch"
-              class="w-64 pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+              class="w-56 pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
             <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <button @click="showUploadModal = true"
+          <button v-if="isLoggedIn" @click="handleUploadClick"
             class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 text-sm font-medium">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             <span>上传</span>
           </button>
+          <div v-if="isLoggedIn" class="flex items-center space-x-2 pl-2 border-l border-gray-200">
+            <div class="flex items-center space-x-2">
+              <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                {{ currentUser.nickname ? currentUser.nickname.charAt(0).toUpperCase() : 'U' }}
+              </div>
+              <span class="text-sm font-medium text-gray-700 max-w-20 truncate">{{ currentUser.nickname || currentUser.username }}</span>
+            </div>
+            <button @click="doLogout"
+              class="px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+              退出
+            </button>
+          </div>
+          <button v-else @click="openLoginModal"
+            class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 text-sm font-medium">
+            登录 / 注册
+          </button>
         </div>
       </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
+      <!-- Guest landing -->
+      <div v-if="!isLoggedIn" class="flex flex-col items-center justify-center py-20">
+        <div class="w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl flex items-center justify-center text-white text-4xl font-bold shadow-2xl mb-8">
+          P
+        </div>
+        <h2 class="text-3xl font-bold text-gray-800 mb-3">欢迎来到智能图库</h2>
+        <p class="text-gray-500 mb-8 text-center max-w-md">
+          上传、管理您的图片，创建专属专辑，用主题词整理回忆。
+          <br />登录后开始使用全部功能。
+        </p>
+        <div class="flex space-x-4">
+          <button @click="openLoginModal"
+            class="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 font-medium">
+            登录 / 注册
+          </button>
+        </div>
+        <div class="grid grid-cols-3 gap-6 mt-16 max-w-2xl">
+          <div class="text-center">
+            <div class="w-12 h-12 mx-auto bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-3">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h4 class="font-semibold text-gray-800 mb-1">图片管理</h4>
+            <p class="text-xs text-gray-500">轻松上传、整理您的图片</p>
+          </div>
+          <div class="text-center">
+            <div class="w-12 h-12 mx-auto bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 mb-3">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h4 class="font-semibold text-gray-800 mb-1">专辑分类</h4>
+            <p class="text-xs text-gray-500">创建专辑，归类整理</p>
+          </div>
+          <div class="text-center">
+            <div class="w-12 h-12 mx-auto bg-pink-100 rounded-xl flex items-center justify-center text-pink-600 mb-3">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+            </div>
+            <h4 class="font-semibold text-gray-800 mb-1">主题词标签</h4>
+            <p class="text-xs text-gray-500">智能标签，快速搜索</p>
+          </div>
+        </div>
+      </div>
+
       <!-- PICTURES -->
-      <div v-if="activeTab === 'pictures'">
+      <div v-else-if="activeTab === 'pictures'">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
           <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center space-x-2">
@@ -84,7 +147,7 @@
         <div v-else-if="pictures.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
           <div class="text-6xl mb-4">🖼️</div>
           <h3 class="text-xl font-medium text-gray-500">暂无图片，快来上传吧！</h3>
-          <button @click="showUploadModal = true"
+          <button @click="handleUploadClick"
             class="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium">
             立即上传
           </button>
@@ -165,7 +228,7 @@
       </div>
 
       <!-- ALBUMS -->
-      <div v-else-if="activeTab === 'albums'">
+      <div v-else-if="isLoggedIn && activeTab === 'albums'">
         <div v-if="!viewingAlbum">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -286,7 +349,7 @@
       </div>
 
       <!-- TAGS -->
-      <div v-else-if="activeTab === 'tags'">
+      <div v-else-if="isLoggedIn && activeTab === 'tags'">
         <div v-if="!viewingTag">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -382,7 +445,7 @@
       </div>
 
       <!-- STATS -->
-      <div v-else-if="activeTab === 'stats'">
+      <div v-else-if="isLoggedIn && activeTab === 'stats'">
         <h2 class="text-2xl font-bold text-gray-800 mb-6">数据统计</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
@@ -492,6 +555,68 @@
         </div>
       </div>
     </main>
+
+    <!-- Auth Modal -->
+    <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showAuthModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative transform transition-all overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold">{{ authMode === 'login' ? '欢迎回来' : '创建账号' }}</h3>
+              <p class="text-blue-100 text-sm mt-1">{{ authMode === 'login' ? '登录后管理您的图片' : '注册后开始您的图片之旅' }}</p>
+            </div>
+            <button @click="showAuthModal = false" class="text-white/70 hover:text-white transition">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="p-6 space-y-5">
+          <div v-if="authError" class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+            {{ authError }}
+          </div>
+          <div v-if="authMode === 'register'">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">昵称</label>
+            <input v-model="authForm.nickname" type="text" placeholder="请输入昵称（可选）"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">用户名</label>
+            <input v-model="authForm.username" type="text" placeholder="请输入用户名"
+              @keyup.enter="authMode === 'login' ? doLogin() : doRegister()"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+            <p class="text-xs text-gray-400 mt-1">3-20个字符</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
+            <input v-model="authForm.password" type="password" placeholder="请输入密码"
+              @keyup.enter="authMode === 'login' ? doLogin() : doRegister()"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+            <p class="text-xs text-gray-400 mt-1">6-20个字符</p>
+          </div>
+          <button @click="authMode === 'login' ? doLogin() : doRegister()" :disabled="authLoading"
+            :class="['w-full py-2.5 rounded-lg font-medium text-white transition shadow-md',
+              authLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:scale-[1.02]']">
+            <span v-if="authLoading" class="flex items-center justify-center space-x-2">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>{{ authMode === 'login' ? '登录中...' : '注册中...' }}</span>
+            </span>
+            <span v-else>{{ authMode === 'login' ? '登 录' : '注 册' }}</span>
+          </button>
+          <div class="text-center text-sm text-gray-500">
+            {{ authMode === 'login' ? '还没有账号？' : '已有账号？' }}
+            <button @click="switchAuthMode" class="text-blue-600 hover:text-blue-700 font-medium ml-1">
+              {{ authMode === 'login' ? '立即注册' : '去登录' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Upload Modal -->
     <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -876,7 +1001,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+const api = axios.create({ baseURL: '/api', withCredentials: true })
 
 const tabs = [
   { id: 'pictures', name: '图片墙' },
@@ -888,6 +1013,114 @@ const tabs = [
 const activeTab = ref('pictures')
 const loading = ref(false)
 const globalSearch = ref('')
+
+// User / Auth
+const currentUser = ref(null)
+const isLoggedIn = computed(() => !!currentUser.value)
+const showAuthModal = ref(false)
+const authMode = ref('login')
+const authForm = reactive({ username: '', password: '', nickname: '' })
+const authLoading = ref(false)
+const authError = ref('')
+
+const openLoginModal = () => {
+  authMode.value = 'login'
+  authForm.username = ''; authForm.password = ''; authForm.nickname = ''
+  authError.value = ''
+  showAuthModal.value = true
+}
+const switchAuthMode = () => {
+  authMode.value = authMode.value === 'login' ? 'register' : 'login'
+  authError.value = ''
+  authForm.password = ''
+}
+const doLogin = async () => {
+  if (!authForm.username.trim() || !authForm.password.trim()) {
+    authError.value = '请输入用户名和密码'
+    return
+  }
+  authLoading.value = true
+  authError.value = ''
+  try {
+    const res = await api.post('/auth/login', {
+      username: authForm.username.trim(),
+      password: authForm.password
+    })
+    if (res.data.success) {
+      currentUser.value = res.data.data
+      showAuthModal.value = false
+      showToast('登录成功！')
+      await fetchAll()
+    } else {
+      authError.value = res.data.message || '登录失败'
+    }
+  } catch (e) {
+    authError.value = '网络错误，请重试'
+  } finally {
+    authLoading.value = false
+  }
+}
+const doRegister = async () => {
+  if (!authForm.username.trim()) { authError.value = '请输入用户名'; return }
+  if (!authForm.password.trim()) { authError.value = '请输入密码'; return }
+  if (authForm.username.trim().length < 3 || authForm.username.trim().length > 20) {
+    authError.value = '用户名长度需在3-20个字符之间'; return
+  }
+  if (authForm.password.length < 6 || authForm.password.length > 20) {
+    authError.value = '密码长度需在6-20个字符之间'; return
+  }
+  authLoading.value = true
+  authError.value = ''
+  try {
+    const res = await api.post('/auth/register', {
+      username: authForm.username.trim(),
+      password: authForm.password,
+      nickname: authForm.nickname.trim() || authForm.username.trim()
+    })
+    if (res.data.success) {
+      showToast('注册成功！请登录')
+      authMode.value = 'login'
+      authForm.password = ''
+    } else {
+      authError.value = res.data.message || '注册失败'
+    }
+  } catch (e) {
+    authError.value = '网络错误，请重试'
+  } finally {
+    authLoading.value = false
+  }
+}
+const doLogout = async () => {
+  try {
+    await api.post('/auth/logout')
+  } catch (e) {}
+  currentUser.value = null
+  pictures.value = []; allAlbums.value = []; allTags.value = []; globalStats.value = {}
+  showToast('已退出登录')
+}
+const checkAuth = async () => {
+  try {
+    const res = await api.get('/auth/me')
+    if (res.data.success) {
+      currentUser.value = res.data.data
+      return true
+    }
+  } catch (e) {}
+  currentUser.value = null
+  return false
+}
+
+// Axios interceptor for 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      currentUser.value = null
+      openLoginModal()
+    }
+    return Promise.reject(error)
+  }
+)
 
 // Global data
 const pictures = ref([])
@@ -929,6 +1162,14 @@ const formatTime = (timeStr) => {
   if (!timeStr) return ''
   const d = new Date(timeStr)
   return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+const handleUploadClick = () => {
+  if (!isLoggedIn.value) {
+    openLoginModal()
+    return
+  }
+  showUploadModal.value = true
 }
 
 // Upload
@@ -1374,13 +1615,19 @@ const fetchAll = async () => {
 
 // Watch tab changes
 watch(activeTab, async (newVal) => {
+  if (!isLoggedIn.value) return
   if (newVal === 'pictures' && pictures.value.length === 0) await fetchPictures()
   if (newVal === 'albums') await fetchAlbums()
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
 })
 
-onMounted(() => fetchAll())
+onMounted(async () => {
+  const loggedIn = await checkAuth()
+  if (loggedIn) {
+    await fetchAll()
+  }
+})
 </script>
 
 <style>

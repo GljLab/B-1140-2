@@ -16,7 +16,10 @@ public class Tag {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false)
+    private Long userId;
+
+    @Column(nullable = false, length = 50)
     private String name;
 
     @Column(nullable = false)
