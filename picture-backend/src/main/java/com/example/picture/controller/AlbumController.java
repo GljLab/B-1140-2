@@ -72,7 +72,7 @@ public class AlbumController {
     @GetMapping("/{id}/pictures")
     public ResponseEntity<ApiResponse<List<PictureDTO>>> getPictures(@PathVariable Long id) {
         Long userId = UserContext.getCurrentUserId();
-        return ResponseEntity.ok(ApiResponse.success(pictureService.listPictures(id, null, null, userId)));
+        return ResponseEntity.ok(ApiResponse.success(pictureService.listAlbumPictures(id, userId)));
     }
 
     @PostMapping("/reorder")

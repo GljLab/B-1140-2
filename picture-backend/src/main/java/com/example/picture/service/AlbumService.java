@@ -199,9 +199,9 @@ public class AlbumService {
         Long count = pictureRepository.countByAlbumId(album.getId());
         dto.setPictureCount(count != null ? count.intValue() : 0);
 
-        Long size = pictureRepository.sumSizesByAlbumIdAndUserId(album.getId(), album.getUserId());
+        Long size = pictureRepository.sumSizesByAlbumId(album.getId());
         dto.setTotalSize(size != null ? size : 0L);
-        dto.setLastUploadTime(pictureRepository.findLastUploadTimeByAlbumIdAndUserId(album.getId(), album.getUserId()));
+        dto.setLastUploadTime(pictureRepository.findLastUploadTimeByAlbumId(album.getId()));
 
         boolean isOwner = album.getUserId().equals(userId);
         boolean isCollaborator = collaboratorRepository.existsByAlbumIdAndUserId(album.getId(), userId);

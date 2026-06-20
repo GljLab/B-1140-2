@@ -49,6 +49,9 @@ public class PictureService {
     @Autowired
     private InteractionService interactionService;
 
+    @Autowired
+    private com.example.picture.repository.AlbumCollaboratorRepository albumCollaboratorRepository;
+
     @Value("${upload.path:/app/images/}")
     private String uploadPath;
 
@@ -86,6 +89,13 @@ public class PictureService {
         if (albumIds != null && !albumIds.isEmpty()) {
             for (Long aid : albumIds) {
                 albumRepository.findByIdAndUserId(aid, userId).ifPresent(albums::add);
+                if (albums.stream().noneMatch(a -> a.getId().equals(aid))) {
+                    albumRepository.findById(aid).ifPresent(album -> {
+                        if (albumCollaboratorRepository.existsByAlbumIdAndUserId(album.getId(), userId)) {
+                            albums.add(album);
+                        }
+                    });
+                }
             }
         }
         if (albums.isEmpty()) {
@@ -132,6 +142,11 @@ public class PictureService {
         return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
     }
 
+    public List<PictureDTO> listAlbumPictures(Long albumId, Long userId) {
+        List<Picture> pictures = pictureRepository.findByAlbumId(albumId);
+        return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
+    }
+
     public PictureDTO getPicture(Long id, Long userId) {
         Picture picture = pictureRepository.findById(id).orElse(null);
         if (picture == null || Boolean.TRUE.equals(picture.getDeleted())) {
@@ -158,6 +173,13 @@ public class PictureService {
             Set<Album> newAlbums = new HashSet<>();
             for (Long aid : request.getAlbumIds()) {
                 albumRepository.findByIdAndUserId(aid, userId).ifPresent(newAlbums::add);
+                if (newAlbums.stream().noneMatch(a -> a.getId().equals(aid))) {
+                    albumRepository.findById(aid).ifPresent(album -> {
+                        if (albumCollaboratorRepository.existsByAlbumIdAndUserId(album.getId(), userId)) {
+                            newAlbums.add(album);
+                        }
+                    });
+                }
             }
             if (newAlbums.isEmpty()) {
                 newAlbums.add(albumService.getDefaultAlbum(userId));
@@ -337,7 +359,12 @@ public class PictureService {
     public void batchAddToAlbum(BatchAlbumRequest request, Long userId) {
         if (request.getPictureIds() == null || request.getAlbumId() == null) return;
         Album album = albumRepository.findByIdAndUserId(request.getAlbumId(), userId).orElse(null);
-        if (album == null) return;
+        if (album == null) {
+            album = albumRepository.findById(request.getAlbumId()).orElse(null);
+            if (album == null || !albumCollaboratorRepository.existsByAlbumIdAndUserId(album.getId(), userId)) {
+                return;
+            }
+        }
         for (Long pid : request.getPictureIds()) {
             Picture picture = pictureRepository.findById(pid).orElse(null);
             if (picture == null || !picture.getUserId().equals(userId)) continue;

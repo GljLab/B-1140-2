@@ -1,8 +1,12 @@
 package com.example.picture.service;
 
 import com.example.picture.dto.NotificationDTO;
+import com.example.picture.entity.CollaborationInvite;
 import com.example.picture.entity.Notification;
+import com.example.picture.entity.User;
+import com.example.picture.repository.CollaborationInviteRepository;
 import com.example.picture.repository.NotificationRepository;
+import com.example.picture.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +18,12 @@ public class NotificationService {
 
     @Autowired
     private NotificationRepository notificationRepository;
+
+    @Autowired
+    private CollaborationInviteRepository inviteRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     public List<NotificationDTO> getNotifications(Long userId) {
         List<Notification> notifications = notificationRepository.findByUserIdOrderByCreateTimeDesc(userId);
@@ -47,6 +57,23 @@ public class NotificationService {
         dto.setRelatedType(notification.getRelatedType());
         dto.setIsRead(notification.getIsRead());
         dto.setCreateTime(notification.getCreateTime());
+
+        if ("COLLABORATION_INVITE".equals(notification.getType()) && notification.getRelatedId() != null) {
+            dto.setTitle("协作邀请");
+            dto.setInviteId(notification.getRelatedId());
+
+            CollaborationInvite invite = inviteRepository.findById(notification.getRelatedId()).orElse(null);
+            if (invite != null) {
+                dto.setInviteStatus(invite.getStatus());
+                User inviter = userRepository.findById(invite.getInviterId()).orElse(null);
+                if (inviter != null) {
+                    dto.setFromNickname(inviter.getNickname() != null ? inviter.getNickname() : inviter.getUsername());
+                }
+            } else {
+                dto.setInviteStatus("EXPIRED");
+            }
+        }
+
         return dto;
     }
 }

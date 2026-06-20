@@ -70,7 +70,7 @@
                 </div>
                 <div v-for="n in notifications" :key="n.id"
                   @click="handleNotificationClick(n)"
-                  :class="['px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer', !n.read ? 'bg-blue-50/30' : '']">
+                  :class="['px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer', !n.isRead ? 'bg-blue-50/30' : '']">
                   <div class="flex items-start space-x-3">
                     <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                       {{ n.type === 'COLLABORATION_INVITE' ? '👥' : (n.fromNickname || 'U').charAt(0).toUpperCase() }}
@@ -78,13 +78,13 @@
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between">
                         <p class="text-sm text-gray-800 font-medium">
-                          <span v-if="!n.read" class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                          {{ n.title }}
+                          <span v-if="!n.isRead" class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          {{ n.title || '系统通知' }}
                         </p>
                       </div>
                       <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{{ n.content }}</p>
                       <p class="text-xs text-gray-400 mt-1">{{ formatTime(n.createTime) }}</p>
-                      <div v-if="n.type === 'COLLABORATION_INVITE' && n.inviteId && n.status === 'PENDING'" class="flex space-x-2 mt-2">
+                      <div v-if="n.type === 'COLLABORATION_INVITE' && n.inviteId && n.inviteStatus === 'PENDING'" class="flex space-x-2 mt-2">
                         <button @click.stop="acceptInvite(n.inviteId, n.id)"
                           class="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs rounded-lg hover:shadow-md transition">
                           接受
@@ -93,6 +93,12 @@
                           class="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition">
                           拒绝
                         </button>
+                      </div>
+                      <div v-if="n.type === 'COLLABORATION_INVITE' && n.inviteStatus === 'ACCEPTED'" class="mt-1">
+                        <span class="text-xs text-green-600 font-medium">已接受</span>
+                      </div>
+                      <div v-if="n.type === 'COLLABORATION_INVITE' && n.inviteStatus === 'REJECTED'" class="mt-1">
+                        <span class="text-xs text-gray-500 font-medium">已拒绝</span>
                       </div>
                     </div>
                   </div>
@@ -1690,9 +1696,9 @@
                     </div>
                     <p v-if="collaborator.username !== collaborator.nickname" class="text-xs text-gray-400">@{{ collaborator.username }}</p>
                     <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
-                      <span>加入时间：{{ formatTime(collaborator.joinedAt) }}</span>
-                      <span v-if="collaborator.contributionCount >= 0">
-                        贡献图片：{{ collaborator.contributionCount }} 张
+                      <span>加入时间：{{ formatTime(collaborator.joinedTime) }}</span>
+                      <span v-if="collaborator.contributedPictures >= 0">
+                        贡献图片：{{ collaborator.contributedPictures }} 张
                       </span>
                     </div>
                   </div>
@@ -2915,7 +2921,7 @@ const markNotificationRead = async (id) => {
 const markAllNotificationsRead = async () => {
   try {
     await api.post('/notifications/read-all')
-    notifications.value.forEach(n => n.read = true)
+    notifications.value.forEach(n => n.isRead = true)
     unreadCount.value = 0
     showToast('已全部标记为已读')
   } catch (e) { showToast('操作失败', 'error') }
@@ -2925,8 +2931,10 @@ const acceptInvite = async (inviteId, notificationId) => {
   try {
     const res = await api.post(`/collaboration/invites/${inviteId}/accept`)
     if (res.data.success) {
-      showToast('已接受邀请')
+      showToast('已接受邀请，您已成为协作者')
       if (notificationId) await markNotificationRead(notificationId)
+      await fetchNotifications()
+      await fetchUnreadCount()
       await fetchAlbumsByCategory()
       await fetchAlbums()
     } else {
@@ -2941,6 +2949,8 @@ const rejectInvite = async (inviteId, notificationId) => {
     if (res.data.success) {
       showToast('已拒绝邀请')
       if (notificationId) await markNotificationRead(notificationId)
+      await fetchNotifications()
+      await fetchUnreadCount()
     } else {
       showToast(res.data.message || '操作失败', 'error')
     }
@@ -2974,6 +2984,11 @@ const fetchAlbumPermissions = async (albumId) => {
 const openCollaborationManagement = async (album) => {
   currentCollaborationAlbum.value = album
   inviteUsername.value = ''
+  currentAlbumPermissions.value = {
+    canEdit: album.userRole === 'OWNER' || album.userRole === 'COLLABORATOR',
+    canDelete: album.userRole === 'OWNER',
+    canManageCollaborators: album.userRole === 'OWNER'
+  }
   showCollaborationModal.value = true
   await fetchCollaborators(album.id)
   await fetchAlbumPermissions(album.id)
@@ -3048,7 +3063,7 @@ const toggleNotificationPanel = async () => {
 }
 
 const handleNotificationClick = (notification) => {
-  if (!notification.read) {
+  if (!notification.isRead) {
     markNotificationRead(notification.id)
   }
 }
