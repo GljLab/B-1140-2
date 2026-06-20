@@ -68,7 +68,7 @@ public class PictureController {
         try {
             Long userId = UserContext.getCurrentUserId();
             pictureService.deletePicture(id, userId);
-            return ResponseEntity.ok(ApiResponse.success("删除成功", null));
+            return ResponseEntity.ok(ApiResponse.success("图片将移入回收站，30天内可恢复", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -101,7 +101,82 @@ public class PictureController {
         try {
             Long userId = UserContext.getCurrentUserId();
             pictureService.batchDelete(request, userId);
-            return ResponseEntity.ok(ApiResponse.success("批量删除成功", null));
+            return ResponseEntity.ok(ApiResponse.success("批量删除成功，图片已移入回收站", null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/recycle")
+    public ResponseEntity<ApiResponse<List<PictureDTO>>> listRecycleBin() {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.listRecycleBin(userId)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/recycle/count")
+    public ResponseEntity<ApiResponse<Long>> getRecycleBinCount() {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.countRecycleBin(userId)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/recycle/restore/{id}")
+    public ResponseEntity<ApiResponse<Void>> restorePicture(@PathVariable Long id) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.restorePicture(id, userId);
+            return ResponseEntity.ok(ApiResponse.success("恢复成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/recycle/batch-restore")
+    public ResponseEntity<ApiResponse<Void>> batchRestore(@RequestBody BatchDeleteRequest request) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.batchRestore(request, userId);
+            return ResponseEntity.ok(ApiResponse.success("批量恢复成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/recycle/{id}")
+    public ResponseEntity<ApiResponse<Void>> permanentDeletePicture(@PathVariable Long id) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.permanentDeletePicture(id, userId);
+            return ResponseEntity.ok(ApiResponse.success("永久删除成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/recycle/batch-delete")
+    public ResponseEntity<ApiResponse<Void>> batchPermanentDelete(@RequestBody BatchDeleteRequest request) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.batchPermanentDelete(request, userId);
+            return ResponseEntity.ok(ApiResponse.success("批量永久删除成功", null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/recycle/clear")
+    public ResponseEntity<ApiResponse<Void>> clearRecycleBin() {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            pictureService.clearRecycleBin(userId);
+            return ResponseEntity.ok(ApiResponse.success("回收站已清空", null));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }

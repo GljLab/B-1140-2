@@ -14,4 +14,7 @@ public class PictureDTO {
     private Date updateTime;
     private List<AlbumSimpleDTO> albums;
     private List<TagDTO> tags;
+    private Boolean deleted;
+    private Date deleteTime;
+    private Integer remainingDays;
 }

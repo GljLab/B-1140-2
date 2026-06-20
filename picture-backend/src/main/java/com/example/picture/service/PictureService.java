@@ -44,6 +44,9 @@ public class PictureService {
     @Value("${upload.path:/app/images/}")
     private String uploadPath;
 
+    @Value("${recycle.retention-days:30}")
+    private int retentionDays = 30;
+
     @PostConstruct
     public void init() {
         File dir = new File(uploadPath);
@@ -186,15 +189,103 @@ public class PictureService {
         if (picture == null || !picture.getUserId().equals(userId)) {
             return;
         }
+        if (Boolean.TRUE.equals(picture.getDeleted())) {
+            return;
+        }
         for (Tag tag : picture.getTags()) {
             tagService.decrementReferenceCount(tag);
+        }
+        picture.setDeleted(true);
+        picture.setDeleteTime(new Date());
+        pictureRepository.save(picture);
+    }
+
+    @Transactional
+    public void permanentDeletePicture(Long id, Long userId) {
+        Picture picture = pictureRepository.findDeletedByIdAndUserId(id, userId).orElse(null);
+        if (picture == null) {
+            return;
         }
         String fileName = picture.getUrl().replace("/images/", "");
         File file = new File(uploadPath + fileName);
         if (file.exists()) {
             file.delete();
         }
+        picture.getAlbums().clear();
+        picture.getTags().clear();
         pictureRepository.delete(picture);
+    }
+
+    @Transactional
+    public void restorePicture(Long id, Long userId) {
+        Picture picture = pictureRepository.findDeletedByIdAndUserId(id, userId).orElse(null);
+        if (picture == null) {
+            return;
+        }
+        for (Tag tag : picture.getTags()) {
+            tagService.incrementReferenceCount(tag);
+        }
+        picture.setDeleted(false);
+        picture.setDeleteTime(null);
+        pictureRepository.save(picture);
+    }
+
+    public List<PictureDTO> listRecycleBin(Long userId) {
+        List<Picture> pictures = pictureRepository.findDeletedByUserId(userId);
+        return pictures.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void batchRestore(BatchDeleteRequest request, Long userId) {
+        if (request.getPictureIds() == null) return;
+        for (Long pid : request.getPictureIds()) {
+            restorePicture(pid, userId);
+        }
+    }
+
+    @Transactional
+    public void batchPermanentDelete(BatchDeleteRequest request, Long userId) {
+        if (request.getPictureIds() == null) return;
+        for (Long pid : request.getPictureIds()) {
+            permanentDeletePicture(pid, userId);
+        }
+    }
+
+    @Transactional
+    public void clearRecycleBin(Long userId) {
+        List<Picture> pictures = pictureRepository.findDeletedByUserId(userId);
+        for (Picture picture : pictures) {
+            String fileName = picture.getUrl().replace("/images/", "");
+            File file = new File(uploadPath + fileName);
+            if (file.exists()) {
+                file.delete();
+            }
+            picture.getAlbums().clear();
+            picture.getTags().clear();
+            pictureRepository.delete(picture);
+        }
+    }
+
+    public long countRecycleBin(Long userId) {
+        return pictureRepository.countDeletedByUserId(userId);
+    }
+
+    @Transactional
+    public void cleanExpiredPictures() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_MONTH, -retentionDays);
+        Date expireTime = calendar.getTime();
+        List<Picture> expiredPictures = pictureRepository.findExpiredDeletedPictures(expireTime);
+        for (Picture picture : expiredPictures) {
+            String fileName = picture.getUrl().replace("/images/", "");
+            File file = new File(uploadPath + fileName);
+            if (file.exists()) {
+                file.delete();
+            }
+            picture.getAlbums().clear();
+            picture.getTags().clear();
+            pictureRepository.delete(picture);
+        }
     }
 
     @Transactional
@@ -258,6 +349,16 @@ public class PictureService {
         dto.setSize(picture.getSize());
         dto.setCreateTime(picture.getCreateTime());
         dto.setUpdateTime(picture.getUpdateTime());
+        dto.setDeleted(picture.getDeleted());
+        dto.setDeleteTime(picture.getDeleteTime());
+        if (Boolean.TRUE.equals(picture.getDeleted()) && picture.getDeleteTime() != null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(picture.getDeleteTime());
+            cal.add(Calendar.DAY_OF_MONTH, retentionDays);
+            long diff = cal.getTimeInMillis() - System.currentTimeMillis();
+            int remainingDays = (int) Math.ceil((double) diff / (1000 * 60 * 60 * 24));
+            dto.setRemainingDays(Math.max(remainingDays, 0));
+        }
         List<AlbumSimpleDTO> albumDTOs = picture.getAlbums().stream()
                 .sorted(Comparator.comparing(Album::getDisplayOrder).thenComparing(Album::getCreateTime))
                 .map(this::albumToSimpleDTO)

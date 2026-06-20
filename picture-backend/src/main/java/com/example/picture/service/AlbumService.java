@@ -24,6 +24,9 @@ public class AlbumService {
     @Autowired
     private PictureRepository pictureRepository;
 
+    @Autowired
+    private TagService tagService;
+
     public Album getDefaultAlbum(Long userId) {
         return albumRepository.findByUserIdAndIsDefaultTrue(userId)
                 .orElseThrow(() -> new RuntimeException("默认专辑不存在"));
@@ -97,13 +100,14 @@ public class AlbumService {
         List<Picture> pictures = pictureRepository.findByAlbumIdAndUserId(id, userId);
         if (deletePictures) {
             for (Picture pic : pictures) {
-                String fileName = pic.getUrl().replace("/images/", "");
-                java.io.File file = new java.io.File("/app/images/" + fileName);
-                if (file.exists()) {
-                    file.delete();
+                if (!Boolean.TRUE.equals(pic.getDeleted())) {
+                    for (com.example.picture.entity.Tag tag : pic.getTags()) {
+                        tagService.decrementReferenceCount(tag);
+                    }
+                    pic.setDeleted(true);
+                    pic.setDeleteTime(new Date());
+                    pictureRepository.save(pic);
                 }
-                pic.getTags().clear();
-                pictureRepository.delete(pic);
             }
         } else {
             Album defaultAlbum = getDefaultAlbum(userId);

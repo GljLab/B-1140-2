@@ -20,6 +20,9 @@
               <svg v-if="tab.id === 'tags'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
+              <svg v-if="tab.id === 'recycle'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
               <svg v-if="tab.id === 'stats'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -573,6 +576,120 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- RECYCLE BIN -->
+      <div v-else-if="isLoggedIn && activeTab === 'recycle'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">回收站</h2>
+            <p class="text-sm text-gray-500 mt-1">共 {{ recyclePictures.length }} 张图片，保留 30 天后自动清除</p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <button v-if="recyclePictures.length > 0" @click="confirmClearRecycleBin"
+              class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition flex items-center space-x-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>清空回收站</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-500">回收站中的图片将在 30 天后自动永久删除</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center space-x-3">
+              <label class="flex items-center space-x-2 cursor-pointer text-sm text-gray-600 hover:text-gray-900">
+                <input type="checkbox" v-model="recycleMultiSelectMode" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                <span>多选模式</span>
+              </label>
+              <span v-if="recycleMultiSelectMode && selectedRecyclePictureIds.length > 0" class="text-sm text-blue-600 font-medium">
+                已选 {{ selectedRecyclePictureIds.length }} 张
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="loading" class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        <div v-else-if="recyclePictures.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="text-6xl mb-4">🗑️</div>
+          <h3 class="text-xl font-medium text-gray-500">回收站为空</h3>
+          <p class="text-sm text-gray-400 mt-2">删除的图片会暂时保留在这里</p>
+        </div>
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div v-for="pic in recyclePictures" :key="pic.id"
+            class="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+            <div v-if="recycleMultiSelectMode" class="absolute top-2 left-2 z-10">
+              <input type="checkbox" :value="pic.id" v-model="selectedRecyclePictureIds"
+                class="w-5 h-5 text-blue-600 rounded bg-white/90 border-2 border-gray-300 focus:ring-blue-500 cursor-pointer" />
+            </div>
+            <div class="aspect-square bg-gray-100 relative overflow-hidden">
+              <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
+              <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition duration-300"></div>
+              <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-300 flex space-x-1">
+                <button @click.stop="confirmRestorePicture(pic)"
+                  class="p-1.5 bg-white/90 rounded-full text-gray-700 hover:text-green-600 shadow-md hover:bg-white transition" title="恢复">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <button @click.stop="confirmPermanentDelete(pic)"
+                  class="p-1.5 bg-white/90 rounded-full text-gray-700 hover:text-red-600 shadow-md hover:bg-white transition" title="永久删除">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+              <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-white font-medium">剩余 {{ pic.remainingDays }} 天</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-3">
+              <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+              <div class="flex justify-between items-center mt-1.5">
+                <span class="text-xs text-gray-400">删除时间: {{ formatTime(pic.deleteTime) }}</span>
+              </div>
+              <div class="mt-2">
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="tag in (pic.tags || []).slice(0, 2)" :key="tag.id"
+                    class="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded">#{{ tag.name }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="recycleMultiSelectMode && selectedRecyclePictureIds.length > 0"
+          class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 bg-white rounded-2xl shadow-2xl border border-gray-100 px-4 py-3 flex items-center space-x-3">
+          <span class="text-sm font-medium text-gray-700 border-r border-gray-200 pr-3">已选 {{ selectedRecyclePictureIds.length }} 张</span>
+          <button @click="confirmBatchRestore"
+            class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>批量恢复</span>
+            </span>
+          </button>
+          <button @click="confirmBatchPermanentDelete"
+            class="px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>批量永久删除</span>
+            </span>
+          </button>
+          <button @click="selectedRecyclePictureIds = []; recycleMultiSelectMode = false" class="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">取消</button>
         </div>
       </div>
 
@@ -1305,6 +1422,7 @@ const tabs = [
   { id: 'pictures', name: '图片墙' },
   { id: 'albums', name: '专辑' },
   { id: 'tags', name: '主题词' },
+  { id: 'recycle', name: '回收站' },
   { id: 'stats', name: '统计' },
   { id: 'shares', name: '我的分享' }
 ]
@@ -1437,6 +1555,7 @@ api.interceptors.response.use(
 
 // Global data
 const pictures = ref([])
+const recyclePictures = ref([])
 const allAlbums = ref([])
 const allTags = ref([])
 const globalStats = ref({})
@@ -1464,6 +1583,8 @@ const filterAlbumId = ref(null)
 const filterTagId = ref(null)
 const multiSelectMode = ref(false)
 const selectedPictureIds = ref([])
+const recycleMultiSelectMode = ref(false)
+const selectedRecyclePictureIds = ref([])
 
 // Toast
 const toast = reactive({ show: false, message: '', type: 'success' })
@@ -2004,13 +2125,13 @@ const savePictureFields = async () => {
 const confirmDeletePicture = (pic) => {
   openConfirm({
     title: `删除图片"${pic.name}"?`,
-    message: '此操作将永久删除图片及所有关联关系，不可恢复。',
-    type: 'danger',
+    message: '图片将移入回收站，30天内可恢复。',
+    type: 'warning',
     onConfirm: async () => {
       try {
         const res = await api.delete(`/delete/${pic.id}`)
         if (res.data.success) {
-          showToast('图片已删除')
+          showToast('图片已移入回收站')
           confirmModal.show = false
           await fetchAll()
         } else showToast(res.data.message || '删除失败', 'error')
@@ -2068,19 +2189,116 @@ const doBatchAlbum = async () => {
 const confirmBatchDelete = () => {
   openConfirm({
     title: `批量删除 ${selectedPictureIds.value.length} 张图片？`,
-    message: '此操作将永久删除选中的图片及其所有关联关系，不可恢复。',
-    type: 'danger',
+    message: '图片将移入回收站，30天内可恢复。',
+    type: 'warning',
     onConfirm: async () => {
       try {
         const res = await api.post('/pictures/batch-delete', { pictureIds: selectedPictureIds.value })
         if (res.data.success) {
-          showToast(`已删除 ${selectedPictureIds.value.length} 张图片`)
+          showToast(`已将 ${selectedPictureIds.value.length} 张图片移入回收站`)
           confirmModal.show = false
           selectedPictureIds.value = []
           multiSelectMode.value = false
           await fetchAll()
         } else showToast(res.data.message || '删除失败', 'error')
       } catch (e) { showToast('删除失败', 'error') }
+    }
+  })
+}
+
+// Recycle bin operations
+const confirmRestorePicture = (pic) => {
+  openConfirm({
+    title: `恢复图片"${pic.name}"?`,
+    message: '图片将恢复到原来的专辑，主题词关系也会恢复。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.post(`/recycle/restore/${pic.id}`)
+        if (res.data.success) {
+          showToast('图片已恢复')
+          confirmModal.show = false
+          await fetchAll()
+        } else showToast(res.data.message || '恢复失败', 'error')
+      } catch (e) { showToast('恢复失败', 'error') }
+    }
+  })
+}
+
+const confirmPermanentDelete = (pic) => {
+  openConfirm({
+    title: `永久删除图片"${pic.name}"?`,
+    message: '此操作将永久删除图片，无法恢复。请谨慎操作！',
+    type: 'danger',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/recycle/${pic.id}`)
+        if (res.data.success) {
+          showToast('图片已永久删除')
+          confirmModal.show = false
+          await fetchRecycleBin()
+        } else showToast(res.data.message || '删除失败', 'error')
+      } catch (e) { showToast('删除失败', 'error') }
+    }
+  })
+}
+
+const confirmBatchRestore = () => {
+  openConfirm({
+    title: `批量恢复 ${selectedRecyclePictureIds.value.length} 张图片？`,
+    message: '选中的图片将恢复到原来的专辑。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.post('/recycle/batch-restore', { pictureIds: selectedRecyclePictureIds.value })
+        if (res.data.success) {
+          showToast(`已恢复 ${selectedRecyclePictureIds.value.length} 张图片`)
+          confirmModal.show = false
+          selectedRecyclePictureIds.value = []
+          recycleMultiSelectMode.value = false
+          await fetchAll()
+        } else showToast(res.data.message || '恢复失败', 'error')
+      } catch (e) { showToast('恢复失败', 'error') }
+    }
+  })
+}
+
+const confirmBatchPermanentDelete = () => {
+  openConfirm({
+    title: `批量永久删除 ${selectedRecyclePictureIds.value.length} 张图片？`,
+    message: '此操作将永久删除选中的图片，无法恢复。请谨慎操作！',
+    type: 'danger',
+    onConfirm: async () => {
+      try {
+        const res = await api.post('/recycle/batch-delete', { pictureIds: selectedRecyclePictureIds.value })
+        if (res.data.success) {
+          showToast(`已永久删除 ${selectedRecyclePictureIds.value.length} 张图片`)
+          confirmModal.show = false
+          selectedRecyclePictureIds.value = []
+          recycleMultiSelectMode.value = false
+          await fetchRecycleBin()
+        } else showToast(res.data.message || '删除失败', 'error')
+      } catch (e) { showToast('删除失败', 'error') }
+    }
+  })
+}
+
+const confirmClearRecycleBin = () => {
+  openConfirm({
+    title: '清空回收站?',
+    message: '此操作将永久删除回收站中的所有图片，无法恢复。请谨慎操作！',
+    type: 'danger',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete('/recycle/clear')
+        if (res.data.success) {
+          showToast('回收站已清空')
+          confirmModal.show = false
+          selectedRecyclePictureIds.value = []
+          recycleMultiSelectMode.value = false
+          await fetchRecycleBin()
+        } else showToast(res.data.message || '操作失败', 'error')
+      } catch (e) { showToast('操作失败', 'error') }
     }
   })
 }
@@ -2130,14 +2348,21 @@ const fetchStats = async () => {
     if (res.data.success) globalStats.value = res.data.data || {}
   } catch (e) {}
 }
+const fetchRecycleBin = async () => {
+  try {
+    const res = await api.get('/recycle')
+    if (res.data.success) recyclePictures.value = res.data.data || []
+  } catch (e) {}
+}
 const fetchAll = async () => {
-  await Promise.all([fetchPictures(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares()])
+  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares()])
 }
 
 // Watch tab changes
 watch(activeTab, async (newVal) => {
   if (!isLoggedIn.value) return
   if (newVal === 'pictures' && pictures.value.length === 0) await fetchPictures()
+  if (newVal === 'recycle') await fetchRecycleBin()
   if (newVal === 'albums') await fetchAlbums()
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }

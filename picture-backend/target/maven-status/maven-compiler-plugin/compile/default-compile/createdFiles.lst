@@ -18,6 +18,7 @@ com\example\picture\repository\TagRepository.class
 com\example\picture\service\ShareService.class
 com\example\picture\dto\AlbumCreateRequest.class
 com\example\picture\entity\Album.class
+com\example\picture\task\RecycleBinCleanTask.class
 com\example\picture\dto\GlobalStatsDTO.class
 com\example\picture\entity\Picture.class
 com\example\picture\dto\ShareDTO.class

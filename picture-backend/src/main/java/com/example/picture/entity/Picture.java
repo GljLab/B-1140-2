@@ -23,6 +23,8 @@ public class Picture {
     private Long size;
     private Date createTime;
     private Date updateTime;
+    private Boolean deleted = false;
+    private Date deleteTime;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
