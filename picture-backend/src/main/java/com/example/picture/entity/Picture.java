@@ -26,7 +26,7 @@ public class Picture {
     private Boolean deleted = false;
     private Date deleteTime;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private Boolean isPublic = false;
 
     @ManyToMany(fetch = FetchType.LAZY)

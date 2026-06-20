@@ -370,7 +370,7 @@ public class PictureService {
         dto.setUpdateTime(picture.getUpdateTime());
         dto.setDeleted(picture.getDeleted());
         dto.setDeleteTime(picture.getDeleteTime());
-        dto.setIsPublic(picture.getIsPublic());
+        dto.setIsPublic(Boolean.TRUE.equals(picture.getIsPublic()));
         dto.setUserId(picture.getUserId());
 
         userRepository.findById(picture.getUserId()).ifPresent(user -> {

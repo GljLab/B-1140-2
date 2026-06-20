@@ -1213,6 +1213,11 @@
             </button>
           </div>
           <p class="text-xs text-gray-500 mb-4">
+            <span v-if="currentPicture.authorNickname" class="inline-flex items-center space-x-1">
+              <span class="w-4 h-4 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">{{ currentPicture.authorNickname.charAt(0).toUpperCase() }}</span>
+              <span>{{ currentPicture.authorNickname }}</span>
+            </span>
+            <span v-if="currentPicture.authorNickname" class="mx-1">·</span>
             {{ formatTime(currentPicture.createTime) }} · {{ formatSize(currentPicture.size) }}
           </p>
           <div v-if="currentPicture.userId === currentUser?.id" class="mb-3">
@@ -1280,7 +1285,7 @@
           <div class="mb-5">
             <div class="flex items-center justify-between mb-2">
               <label class="text-sm font-semibold text-gray-700">所属专辑</label>
-              <button v-if="!editingPictureFields" @click="startEditPictureFields"
+              <button v-if="!editingPictureFields && currentPicture.userId === currentUser?.id" @click="startEditPictureFields"
                 class="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-0.5">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1314,7 +1319,7 @@
           <div class="mb-5">
             <div class="flex items-center justify-between mb-2">
               <label class="text-sm font-semibold text-gray-700">主题词</label>
-              <button v-if="!editingPictureFields" @click="startEditPictureFields"
+              <button v-if="!editingPictureFields && currentPicture.userId === currentUser?.id" @click="startEditPictureFields"
                 class="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-0.5">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

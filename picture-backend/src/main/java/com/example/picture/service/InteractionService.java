@@ -159,7 +159,7 @@ public class InteractionService {
     }
 
     public long countReceivedLikes(Long userId) {
-        List<Picture> userPictures = pictureRepository.findPublicPicturesByUserId(userId);
+        List<Picture> userPictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
         long total = 0;
         for (Picture p : userPictures) {
             total += likeRepository.countByPictureId(p.getId());
@@ -168,7 +168,7 @@ public class InteractionService {
     }
 
     public long countReceivedComments(Long userId) {
-        List<Picture> userPictures = pictureRepository.findPublicPicturesByUserId(userId);
+        List<Picture> userPictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
         long total = 0;
         for (Picture p : userPictures) {
             total += commentRepository.countByPictureId(p.getId());

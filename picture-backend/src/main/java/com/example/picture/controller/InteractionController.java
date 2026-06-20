@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +24,10 @@ public class InteractionController {
             Long userId = UserContext.getCurrentUserId();
             boolean liked = interactionService.toggleLike(pictureId, userId);
             long likeCount = interactionService.getLikeCount(pictureId);
-            return ResponseEntity.ok(ApiResponse.success("操作成功", Map.of("liked", liked, "likeCount", likeCount)));
+            Map<String, Object> result = new HashMap<>();
+            result.put("liked", liked);
+            result.put("likeCount", likeCount);
+            return ResponseEntity.ok(ApiResponse.success("操作成功", result));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -34,7 +38,10 @@ public class InteractionController {
         Long userId = UserContext.getCurrentUserId();
         boolean liked = interactionService.isLiked(pictureId, userId);
         long likeCount = interactionService.getLikeCount(pictureId);
-        return ResponseEntity.ok(ApiResponse.success(Map.of("liked", liked, "likeCount", likeCount)));
+        Map<String, Object> result = new HashMap<>();
+        result.put("liked", liked);
+        result.put("likeCount", likeCount);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @PostMapping("/pictures/{pictureId}/comments")
@@ -73,7 +80,10 @@ public class InteractionController {
             Long userId = UserContext.getCurrentUserId();
             boolean favorited = interactionService.toggleFavorite(pictureId, userId);
             long favoriteCount = interactionService.getFavoriteCount(pictureId);
-            return ResponseEntity.ok(ApiResponse.success("操作成功", Map.of("favorited", favorited, "favoriteCount", favoriteCount)));
+            Map<String, Object> result = new HashMap<>();
+            result.put("favorited", favorited);
+            result.put("favoriteCount", favoriteCount);
+            return ResponseEntity.ok(ApiResponse.success("操作成功", result));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
@@ -84,7 +94,10 @@ public class InteractionController {
         Long userId = UserContext.getCurrentUserId();
         boolean favorited = interactionService.isFavorited(pictureId, userId);
         long favoriteCount = interactionService.getFavoriteCount(pictureId);
-        return ResponseEntity.ok(ApiResponse.success(Map.of("favorited", favorited, "favoriteCount", favoriteCount)));
+        Map<String, Object> result = new HashMap<>();
+        result.put("favorited", favorited);
+        result.put("favoriteCount", favoriteCount);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/pictures/{pictureId}/stats")
@@ -95,12 +108,12 @@ public class InteractionController {
         long favoriteCount = interactionService.getFavoriteCount(pictureId);
         boolean liked = interactionService.isLiked(pictureId, userId);
         boolean favorited = interactionService.isFavorited(pictureId, userId);
-        return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "likeCount", likeCount,
-                "commentCount", commentCount,
-                "favoriteCount", favoriteCount,
-                "liked", liked,
-                "favorited", favorited
-        )));
+        Map<String, Object> result = new HashMap<>();
+        result.put("likeCount", likeCount);
+        result.put("commentCount", commentCount);
+        result.put("favoriteCount", favoriteCount);
+        result.put("liked", liked);
+        result.put("favorited", favorited);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
