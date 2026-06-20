@@ -40,7 +40,7 @@ services:
     build: ./picture-frontend
     container_name: picture_frontend
     ports:
-      - "4140:4140"
+      - "5140:4140"
     depends_on:
       backend:
         condition: service_started

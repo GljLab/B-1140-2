@@ -93,11 +93,10 @@ public class CollaborationController {
     @GetMapping("/albums/{albumId}/permissions")
     public ResponseEntity<ApiResponse<Map<String, Boolean>>> getPermissions(@PathVariable Long albumId) {
         Long userId = UserContext.getCurrentUserId();
-        Map<String, Boolean> permissions = Map.of(
-                "canEdit", collaborationService.canEditAlbum(albumId, userId),
-                "canDelete", collaborationService.canDeleteAlbum(albumId, userId),
-                "canManageCollaborators", collaborationService.canManageCollaborators(albumId, userId)
-        );
+        Map<String, Boolean> permissions = new java.util.HashMap<>();
+        permissions.put("canEdit", collaborationService.canEditAlbum(albumId, userId));
+        permissions.put("canDelete", collaborationService.canDeleteAlbum(albumId, userId));
+        permissions.put("canManageCollaborators", collaborationService.canManageCollaborators(albumId, userId));
         return ResponseEntity.ok(ApiResponse.success(permissions));
     }
 }
