@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class AlbumDTO {
     private Long id;
+    private Long userId;
     private String name;
     private String description;
     private String coverUrl;
@@ -20,4 +21,9 @@ public class AlbumDTO {
     private Long totalSize;
     private Date lastUploadTime;
     private List<PictureDTO> pictures;
+    private Boolean isCollaboration;
+    private String userRole;
+    private String creatorNickname;
+    private String creatorUsername;
+    private Integer collaboratorCount;
 }

@@ -109,4 +109,10 @@ public class AlbumController {
         Long userId = UserContext.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(albumService.searchAlbums(keyword, userId)));
     }
+
+    @GetMapping("/category")
+    public ResponseEntity<ApiResponse<Map<String, List<AlbumDTO>>>> listByCategory() {
+        Long userId = UserContext.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(albumService.listAlbumsByCategory(userId)));
+    }
 }

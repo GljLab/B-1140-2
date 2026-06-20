@@ -21,4 +21,10 @@ public interface AlbumRepository extends JpaRepository<Album, Long> {
     long countByUserId(@Param("userId") Long userId);
 
     Optional<Album> findByIdAndUserId(Long id, Long userId);
+
+    @Query("SELECT a FROM Album a JOIN AlbumCollaborator ac ON a.id = ac.albumId WHERE ac.userId = :userId ORDER BY a.createTime DESC")
+    List<Album> findCollaborationAlbumsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT a FROM Album a WHERE a.id = :id AND (a.userId = :userId OR EXISTS (SELECT 1 FROM AlbumCollaborator ac WHERE ac.albumId = a.id AND ac.userId = :userId))")
+    Optional<Album> findAccessibleAlbumById(@Param("id") Long id, @Param("userId") Long userId);
 }

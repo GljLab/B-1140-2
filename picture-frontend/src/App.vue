@@ -45,6 +45,61 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+          <div v-if="isLoggedIn" class="relative" ref="notificationPanelRef">
+            <button id="notification-bell-btn" @click.stop="toggleNotificationPanel"
+              class="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span v-if="unreadCount > 0"
+                class="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
+                {{ unreadCount > 99 ? '99+' : unreadCount }}
+              </span>
+            </button>
+            <div v-if="showNotificationPanel"
+              class="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+              <div class="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 flex items-center justify-between">
+                <h3 class="text-white font-semibold">消息通知</h3>
+                <button @click="markAllNotificationsRead"
+                  class="text-xs text-blue-100 hover:text-white transition">全部已读</button>
+              </div>
+              <div class="max-h-96 overflow-y-auto">
+                <div v-if="notifications.length === 0" class="py-12 text-center text-gray-400 text-sm">
+                  <div class="text-4xl mb-2">🔔</div>
+                  暂无通知
+                </div>
+                <div v-for="n in notifications" :key="n.id"
+                  @click="handleNotificationClick(n)"
+                  :class="['px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer', !n.read ? 'bg-blue-50/30' : '']">
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {{ n.type === 'COLLABORATION_INVITE' ? '👥' : (n.fromNickname || 'U').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between">
+                        <p class="text-sm text-gray-800 font-medium">
+                          <span v-if="!n.read" class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          {{ n.title }}
+                        </p>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{{ n.content }}</p>
+                      <p class="text-xs text-gray-400 mt-1">{{ formatTime(n.createTime) }}</p>
+                      <div v-if="n.type === 'COLLABORATION_INVITE' && n.inviteId && n.status === 'PENDING'" class="flex space-x-2 mt-2">
+                        <button @click.stop="acceptInvite(n.inviteId, n.id)"
+                          class="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs rounded-lg hover:shadow-md transition">
+                          接受
+                        </button>
+                        <button @click.stop="rejectInvite(n.inviteId, n.id)"
+                          class="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition">
+                          拒绝
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <button v-if="isLoggedIn" @click="handleUploadClick"
             class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 text-sm font-medium">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -451,11 +506,29 @@
       <div v-else-if="isLoggedIn && activeTab === 'albums'">
         <div v-if="!viewingAlbum">
           <div class="flex items-center justify-between mb-6">
-            <div>
-              <h2 class="text-2xl font-bold text-gray-800">专辑管理</h2>
-              <p class="text-sm text-gray-500 mt-1">共 {{ allAlbums.length }} 个专辑</p>
+            <div class="flex items-center space-x-4">
+              <div>
+                <h2 class="text-2xl font-bold text-gray-800">专辑管理</h2>
+                <p class="text-sm text-gray-500 mt-1">共 {{ displayedAlbums.length }} 个专辑</p>
+              </div>
+              <div class="flex bg-gray-100 rounded-xl p-1">
+                <button @click="albumCategory = 'created'"
+                  :class="['px-4 py-2 rounded-lg text-sm font-medium transition',
+                    albumCategory === 'created'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900']">
+                  我创建的
+                </button>
+                <button @click="albumCategory = 'collaboration'"
+                  :class="['px-4 py-2 rounded-lg text-sm font-medium transition',
+                    albumCategory === 'collaboration'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900']">
+                  我协作的
+                </button>
+              </div>
             </div>
-            <button @click="openCreateAlbum"
+            <button v-if="albumCategory === 'created'" @click="openCreateAlbum"
               class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition text-sm font-medium">
               <span class="flex items-center space-x-1.5">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -465,12 +538,13 @@
               </span>
             </button>
           </div>
-          <div v-if="allAlbums.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm">
+          <div v-if="displayedAlbums.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm">
             <div class="text-6xl mb-4">📁</div>
-            <h3 class="text-xl font-medium text-gray-500">还没有专辑</h3>
+            <h3 class="text-xl font-medium text-gray-500">{{ albumCategory === 'created' ? '还没有专辑' : '暂无协作的专辑' }}</h3>
+            <p v-if="albumCategory === 'collaboration'" class="text-sm text-gray-400 mt-2">接受邀请后，协作的专辑将显示在这里</p>
           </div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            <div v-for="album in allAlbums" :key="album.id"
+            <div v-for="album in displayedAlbums" :key="album.id"
               class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 cursor-pointer"
               @click="openAlbumDetail(album)">
               <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100">
@@ -482,13 +556,13 @@
                 </div>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
                 <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition duration-300 flex space-x-1">
-                  <button @click.stop="openEditAlbum(album)"
+                  <button v-if="album.userRole === 'OWNER' || album.userRole === 'COLLABORATOR'" @click.stop="openEditAlbum(album)"
                     class="p-2 bg-white/90 rounded-lg text-gray-700 hover:text-blue-600 shadow-md hover:bg-white transition" title="编辑">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button v-if="!album.isDefault" @click.stop="confirmDeleteAlbum(album)"
+                  <button v-if="album.userRole === 'OWNER' && !album.isDefault" @click.stop="confirmDeleteAlbum(album)"
                     class="p-2 bg-white/90 rounded-lg text-gray-700 hover:text-red-600 shadow-md hover:bg-white transition" title="删除">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -496,7 +570,13 @@
                   </button>
                 </div>
                 <div class="absolute bottom-3 left-4 right-4">
-                  <span v-if="album.isDefault" class="inline-block px-2 py-0.5 bg-blue-500/90 text-white text-xs rounded-md mb-2">系统默认</span>
+                  <div class="flex items-center space-x-2 mb-2">
+                    <span v-if="album.isDefault" class="inline-block px-2 py-0.5 bg-blue-500/90 text-white text-xs rounded-md">系统默认</span>
+                    <span v-if="album.isCollaboration" class="inline-block px-2 py-0.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs rounded-md shadow-sm">协作</span>
+                  </div>
+                  <p v-if="album.isCollaboration" class="text-xs text-white/80">
+                    创建者：{{ album.creatorNickname || album.creatorUsername }}
+                  </p>
                 </div>
               </div>
               <div class="p-4">
@@ -509,7 +589,13 @@
                     </svg>
                     <span>{{ album.pictureCount }} 张</span>
                   </span>
-                  <span class="text-xs text-gray-500">{{ formatSize(album.totalSize) }}</span>
+                  <span v-if="album.collaboratorCount > 0" class="text-xs text-blue-600 flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>{{ album.collaboratorCount }} 人协作</span>
+                  </span>
+                  <span v-else class="text-xs text-gray-500">{{ formatSize(album.totalSize) }}</span>
                 </div>
               </div>
             </div>
@@ -529,12 +615,24 @@
                 <img v-if="currentAlbumDetail.coverUrl" :src="currentAlbumDetail.coverUrl" class="w-full h-full object-cover" />
               </div>
               <div class="flex-1">
-                <h2 class="text-2xl font-bold text-gray-800">{{ currentAlbumDetail.name }}</h2>
+                <div class="flex items-center space-x-2 mb-1">
+                  <h2 class="text-2xl font-bold text-gray-800">{{ currentAlbumDetail.name }}</h2>
+                  <span v-if="currentAlbumDetail.isCollaboration" class="inline-block px-2 py-0.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs rounded-md shadow-sm">协作</span>
+                </div>
                 <p v-if="currentAlbumDetail.description" class="text-sm text-gray-500 mt-1">{{ currentAlbumDetail.description }}</p>
                 <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                   <span>{{ currentAlbumDetail.pictureCount }} 张图片</span>
                   <span>{{ formatSize(currentAlbumDetail.totalSize) }}</span>
                   <span v-if="currentAlbumDetail.lastUploadTime">最近更新: {{ formatTime(currentAlbumDetail.lastUploadTime) }}</span>
+                  <span v-if="currentAlbumDetail.isCollaboration" class="text-blue-600">
+                    创建者：{{ currentAlbumDetail.creatorNickname || currentAlbumDetail.creatorUsername }}
+                  </span>
+                  <span v-if="currentAlbumDetail.collaboratorCount > 0" class="flex items-center space-x-1 text-blue-600">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>{{ currentAlbumDetail.collaboratorCount }} 人协作</span>
+                  </span>
                 </div>
               </div>
               <div class="flex items-center space-x-2">
@@ -545,7 +643,16 @@
                   </svg>
                   <span>分享</span>
                 </button>
-                <button @click="openEditAlbum(currentAlbumDetail)"
+                <button v-if="currentAlbumDetail.userRole === 'OWNER' || currentAlbumDetail.userRole === 'COLLABORATOR'"
+                  @click="openCollaborationManagement(currentAlbumDetail)"
+                  class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition flex items-center space-x-1">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>协作管理</span>
+                </button>
+                <button v-if="currentAlbumDetail.userRole === 'OWNER' || currentAlbumDetail.userRole === 'COLLABORATOR'"
+                  @click="openEditAlbum(currentAlbumDetail)"
                   class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">编辑专辑</button>
               </div>
             </div>
@@ -561,7 +668,8 @@
               <div class="aspect-square bg-gray-100 relative overflow-hidden cursor-pointer" @click="viewPicture(pic)">
                 <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
                 <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-300">
-                  <button @click.stop="removeFromAlbum(pic)"
+                  <button v-if="currentAlbumDetail.userRole === 'OWNER' || pic.userId === currentUser?.id"
+                    @click.stop="removeFromAlbum(pic)"
                     class="p-1.5 bg-white/90 rounded-full text-gray-700 hover:text-red-600 shadow-md transition" title="从专辑移除">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
@@ -571,6 +679,9 @@
               </div>
               <div class="p-3">
                 <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+                <p v-if="currentAlbumDetail.isCollaboration && pic.userId !== currentUser?.id" class="text-xs text-gray-400 mt-0.5">
+                  上传者：{{ pic.authorNickname || '未知' }}
+                </p>
               </div>
             </div>
           </div>
@@ -1517,6 +1628,103 @@
       </div>
     </div>
 
+    <!-- Collaboration Management Modal -->
+    <div v-if="showCollaborationModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showCollaborationModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden relative flex flex-col">
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold">协作管理</h3>
+              <p class="text-indigo-100 text-sm mt-1">{{ currentCollaborationAlbum?.name }}</p>
+            </div>
+            <button @click="showCollaborationModal = false" class="text-white/70 hover:text-white transition">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto">
+          <div v-if="currentAlbumPermissions.canManageCollaborators" class="mb-6">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">邀请协作者</h4>
+            <div class="flex space-x-2">
+              <input v-model="inviteUsername" type="text" placeholder="输入用户名邀请协作者"
+                @keyup.enter="inviteCollaborator"
+                class="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button @click="inviteCollaborator" :disabled="!inviteUsername.trim()"
+                :class="['px-5 py-2 rounded-lg text-sm font-medium transition',
+                  inviteUsername.trim()
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-lg'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+                邀请
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-semibold text-gray-700">协作者列表</h4>
+              <span class="text-xs text-gray-500">共 {{ collaborators.length }} 人</span>
+            </div>
+
+            <div v-if="collaborators.length === 0" class="text-center py-10 text-gray-400 text-sm">
+              <div class="text-4xl mb-2">👥</div>
+              暂无协作者
+            </div>
+
+            <div v-else class="space-y-3">
+              <div v-for="collaborator in collaborators" :key="collaborator.userId"
+                class="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md transition">
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    {{ (collaborator.nickname || collaborator.username || 'U').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center space-x-2">
+                      <span class="font-medium text-gray-800 truncate">{{ collaborator.nickname || collaborator.username }}</span>
+                      <span :class="['text-[10px] px-2 py-0.5 rounded-full', getRoleBadgeClass(collaborator.role)]">
+                        {{ getRoleText(collaborator.role) }}
+                      </span>
+                    </div>
+                    <p v-if="collaborator.username !== collaborator.nickname" class="text-xs text-gray-400">@{{ collaborator.username }}</p>
+                    <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                      <span>加入时间：{{ formatTime(collaborator.joinedAt) }}</span>
+                      <span v-if="collaborator.contributionCount >= 0">
+                        贡献图片：{{ collaborator.contributionCount }} 张
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex space-x-2">
+                    <button v-if="currentAlbumPermissions.canManageCollaborators && collaborator.role !== 'OWNER'"
+                      @click="removeCollaborator(collaborator.userId)"
+                      class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="移除协作者">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                    <button v-if="collaborator.role === 'COLLABORATOR' && collaborator.userId === currentUser?.id"
+                      @click="leaveCollaboration"
+                      class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition">
+                      退出协作
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end space-x-3">
+          <button @click="showCollaborationModal = false"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Generic Confirm Modal -->
     <div v-if="confirmModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="confirmModal.show = false"></div>
@@ -1596,7 +1804,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
@@ -1750,6 +1958,21 @@ const favoritePictures = ref([])
 const pictureComments = ref([])
 const newCommentContent = ref('')
 const commentInput = ref(null)
+
+// Collaboration & Notifications
+const notifications = ref([])
+const unreadCount = ref(0)
+const showNotificationPanel = ref(false)
+const notificationPanelRef = ref(null)
+const albumCategory = ref('created')
+const createdAlbums = ref([])
+const collaborationAlbums = ref([])
+const showCollaborationModal = ref(false)
+const collaborators = ref([])
+const inviteUsername = ref('')
+const currentAlbumPermissions = ref({})
+const currentCollaborationAlbum = ref(null)
+let unreadCountTimer = null
 
 // Share modal
 const showShareModal = ref(false)
@@ -2650,8 +2873,203 @@ const fetchRecycleBin = async () => {
     if (res.data.success) recyclePictures.value = res.data.data || []
   } catch (e) {}
 }
+
+// Collaboration & Notifications methods
+const fetchNotifications = async () => {
+  try {
+    const res = await api.get('/notifications')
+    if (res.data.success) notifications.value = res.data.data || []
+  } catch (e) {}
+}
+
+const fetchUnreadCount = async () => {
+  try {
+    const res = await api.get('/notifications/unread/count')
+    if (res.data.success) unreadCount.value = res.data.data || 0
+  } catch (e) {}
+}
+
+const startUnreadCountTimer = () => {
+  if (unreadCountTimer) clearInterval(unreadCountTimer)
+  unreadCountTimer = setInterval(() => {
+    if (isLoggedIn.value) fetchUnreadCount()
+  }, 30000)
+}
+
+const stopUnreadCountTimer = () => {
+  if (unreadCountTimer) {
+    clearInterval(unreadCountTimer)
+    unreadCountTimer = null
+  }
+}
+
+const markNotificationRead = async (id) => {
+  try {
+    await api.post(`/notifications/${id}/read`)
+    const n = notifications.value.find(x => x.id === id)
+    if (n) n.read = true
+    if (unreadCount.value > 0) unreadCount.value--
+  } catch (e) {}
+}
+
+const markAllNotificationsRead = async () => {
+  try {
+    await api.post('/notifications/read-all')
+    notifications.value.forEach(n => n.read = true)
+    unreadCount.value = 0
+    showToast('已全部标记为已读')
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const acceptInvite = async (inviteId, notificationId) => {
+  try {
+    const res = await api.post(`/collaboration/invites/${inviteId}/accept`)
+    if (res.data.success) {
+      showToast('已接受邀请')
+      if (notificationId) await markNotificationRead(notificationId)
+      await fetchAlbumsByCategory()
+      await fetchAlbums()
+    } else {
+      showToast(res.data.message || '操作失败', 'error')
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const rejectInvite = async (inviteId, notificationId) => {
+  try {
+    const res = await api.post(`/collaboration/invites/${inviteId}/reject`)
+    if (res.data.success) {
+      showToast('已拒绝邀请')
+      if (notificationId) await markNotificationRead(notificationId)
+    } else {
+      showToast(res.data.message || '操作失败', 'error')
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const fetchAlbumsByCategory = async () => {
+  try {
+    const res = await api.get('/albums/category')
+    if (res.data.success) {
+      createdAlbums.value = res.data.data.created || []
+      collaborationAlbums.value = res.data.data.collaboration || []
+    }
+  } catch (e) {}
+}
+
+const fetchCollaborators = async (albumId) => {
+  try {
+    const res = await api.get(`/collaboration/albums/${albumId}/collaborators`)
+    if (res.data.success) collaborators.value = res.data.data || []
+  } catch (e) {}
+}
+
+const fetchAlbumPermissions = async (albumId) => {
+  try {
+    const res = await api.get(`/collaboration/albums/${albumId}/permissions`)
+    if (res.data.success) currentAlbumPermissions.value = res.data.data || {}
+  } catch (e) {}
+}
+
+const openCollaborationManagement = async (album) => {
+  currentCollaborationAlbum.value = album
+  inviteUsername.value = ''
+  showCollaborationModal.value = true
+  await fetchCollaborators(album.id)
+  await fetchAlbumPermissions(album.id)
+}
+
+const inviteCollaborator = async () => {
+  if (!inviteUsername.value.trim() || !currentCollaborationAlbum.value) return
+  try {
+    const res = await api.post(`/collaboration/albums/${currentCollaborationAlbum.value.id}/invite`, {
+      username: inviteUsername.value.trim()
+    })
+    if (res.data.success) {
+      showToast('邀请已发送')
+      inviteUsername.value = ''
+      await fetchCollaborators(currentCollaborationAlbum.value.id)
+    } else {
+      showToast(res.data.message || '邀请失败', 'error')
+    }
+  } catch (e) { showToast('邀请失败', 'error') }
+}
+
+const removeCollaborator = async (userId) => {
+  if (!currentCollaborationAlbum.value) return
+  openConfirm({
+    title: '移除协作者？',
+    message: '该用户将不再能编辑此专辑。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/collaboration/albums/${currentCollaborationAlbum.value.id}/collaborators/${userId}`)
+        if (res.data.success) {
+          showToast('已移除协作者')
+          confirmModal.show = false
+          await fetchCollaborators(currentCollaborationAlbum.value.id)
+        } else {
+          showToast(res.data.message || '操作失败', 'error')
+        }
+      } catch (e) { showToast('操作失败', 'error') }
+    }
+  })
+}
+
+const leaveCollaboration = async () => {
+  if (!currentCollaborationAlbum.value) return
+  openConfirm({
+    title: '退出协作？',
+    message: '退出后您将不再能编辑此专辑。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.post(`/collaboration/albums/${currentCollaborationAlbum.value.id}/leave`)
+        if (res.data.success) {
+          showToast('已退出协作')
+          confirmModal.show = false
+          showCollaborationModal.value = false
+          viewingAlbum.value = false
+          await fetchAlbumsByCategory()
+          await fetchAlbums()
+        } else {
+          showToast(res.data.message || '操作失败', 'error')
+        }
+      } catch (e) { showToast('操作失败', 'error') }
+    }
+  })
+}
+
+const toggleNotificationPanel = async () => {
+  showNotificationPanel.value = !showNotificationPanel.value
+  if (showNotificationPanel.value) {
+    await fetchNotifications()
+  }
+}
+
+const handleNotificationClick = (notification) => {
+  if (!notification.read) {
+    markNotificationRead(notification.id)
+  }
+}
+
+const getRoleText = (role) => {
+  if (role === 'OWNER') return '所有者'
+  if (role === 'COLLABORATOR') return '协作者'
+  return role || '成员'
+}
+
+const getRoleBadgeClass = (role) => {
+  if (role === 'OWNER') return 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
+  if (role === 'COLLABORATOR') return 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+  return 'bg-gray-100 text-gray-600'
+}
+
+const displayedAlbums = computed(() => {
+  return albumCategory.value === 'created' ? createdAlbums.value : collaborationAlbums.value
+})
 const fetchAll = async () => {
-  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites()])
+  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchAlbumsByCategory(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites(), fetchUnreadCount()])
 }
 
 // Watch tab changes
@@ -2659,7 +3077,10 @@ watch(activeTab, async (newVal) => {
   if (!isLoggedIn.value) return
   if (newVal === 'pictures' && pictures.value.length === 0) await fetchPictures()
   if (newVal === 'recycle') await fetchRecycleBin()
-  if (newVal === 'albums') await fetchAlbums()
+  if (newVal === 'albums') {
+    await fetchAlbums()
+    await fetchAlbumsByCategory()
+  }
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
   if (newVal === 'shares') await fetchShares()
@@ -2667,12 +3088,42 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'favorites') await fetchMyFavorites()
 })
 
+watch(isLoggedIn, async (newVal) => {
+  if (newVal) {
+    startUnreadCountTimer()
+    fetchUnreadCount()
+  } else {
+    stopUnreadCountTimer()
+    unreadCount.value = 0
+    notifications.value = []
+    showNotificationPanel.value = false
+  }
+})
+
+const handleClickOutside = (e) => {
+  if (notificationPanelRef.value && !notificationPanelRef.value.contains(e.target)) return
+  const bellBtn = document.getElementById('notification-bell-btn')
+  if (bellBtn && bellBtn.contains(e.target)) return
+  showNotificationPanel.value = false
+}
+
 onMounted(async () => {
   if (!parseHashRoute()) {
     const loggedIn = await checkAuth()
     if (loggedIn) {
       await fetchAll()
+      startUnreadCountTimer()
     }
+  }
+  if (typeof window !== 'undefined') {
+    document.addEventListener('click', handleClickOutside)
+  }
+})
+
+onUnmounted(() => {
+  stopUnreadCountTimer()
+  if (typeof window !== 'undefined') {
+    document.removeEventListener('click', handleClickOutside)
   }
 })
 </script>
