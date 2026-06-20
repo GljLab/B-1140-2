@@ -17,4 +17,12 @@ public class PictureDTO {
     private Boolean deleted;
     private Date deleteTime;
     private Integer remainingDays;
+    private Boolean isPublic;
+    private Long userId;
+    private String authorNickname;
+    private long likeCount;
+    private long commentCount;
+    private long favoriteCount;
+    private Boolean isLiked;
+    private Boolean isFavorited;
 }

@@ -43,6 +43,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/auth/register",
                         "/api/shares/*",
                         "/api/shares/*/access",
+                        "/api/discover",
                         "/images/**"
                 );
     }

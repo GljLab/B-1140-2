@@ -11,6 +11,12 @@
             :class="['px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
               activeTab === tab.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50']">
             <span class="flex items-center space-x-1.5">
+              <svg v-if="tab.id === 'discover'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <svg v-if="tab.id === 'favorites'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
               <svg v-if="tab.id === 'pictures'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -350,6 +356,94 @@
             </span>
           </button>
           <button @click="selectedPictureIds = []" class="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">取消</button>
+        </div>
+      </div>
+
+      <!-- DISCOVER -->
+      <div v-else-if="activeTab === 'discover'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">发现广场</h2>
+            <p class="text-sm text-gray-500 mt-1">探索所有用户的公开图片</p>
+          </div>
+        </div>
+        <div v-if="loading" class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        <div v-else-if="discoverPictures.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="text-6xl mb-4">🌍</div>
+          <h3 class="text-xl font-medium text-gray-500">暂无公开图片</h3>
+          <p class="text-sm text-gray-400 mt-2">快去发布你的第一张公开图片吧！</p>
+        </div>
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div v-for="pic in discoverPictures" :key="pic.id"
+            class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 cursor-pointer"
+            @click="viewDiscoverPicture(pic)">
+            <div class="aspect-square bg-gray-100 relative overflow-hidden">
+              <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
+              <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition duration-300"></div>
+              <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition duration-300">
+                <div class="flex items-center space-x-3 text-white text-xs">
+                  <span class="flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    <span>{{ pic.likeCount }}</span>
+                  </span>
+                  <span class="flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <span>{{ pic.commentCount }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="p-3">
+              <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+              <div class="flex justify-between items-center mt-1.5">
+                <span class="text-xs text-blue-600 flex items-center space-x-1">
+                  <span class="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-600">{{ (pic.authorNickname || 'U').charAt(0).toUpperCase() }}</span>
+                  <span class="truncate max-w-16">{{ pic.authorNickname || '未知' }}</span>
+                </span>
+                <span class="text-xs text-gray-400">{{ formatTime(pic.createTime) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAVORITES -->
+      <div v-else-if="isLoggedIn && activeTab === 'favorites'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">我的收藏</h2>
+            <p class="text-sm text-gray-500 mt-1">共 {{ favoritePictures.length }} 张收藏</p>
+          </div>
+        </div>
+        <div v-if="loading" class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+        <div v-else-if="favoritePictures.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="text-6xl mb-4">⭐</div>
+          <h3 class="text-xl font-medium text-gray-500">暂无收藏</h3>
+          <p class="text-sm text-gray-400 mt-2">在发现广场中收藏喜欢的图片吧！</p>
+        </div>
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div v-for="pic in favoritePictures" :key="pic.id"
+            class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 cursor-pointer"
+            @click="viewDiscoverPicture(pic)">
+            <div class="aspect-square bg-gray-100 relative overflow-hidden">
+              <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
+              <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition duration-300"></div>
+            </div>
+            <div class="p-3">
+              <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+              <div class="flex justify-between items-center mt-1.5">
+                <span class="text-xs text-blue-600 flex items-center space-x-1">
+                  <span class="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-600">{{ (pic.authorNickname || 'U').charAt(0).toUpperCase() }}</span>
+                  <span class="truncate max-w-16">{{ pic.authorNickname || '未知' }}</span>
+                </span>
+                <span class="text-xs text-gray-400">收藏于 {{ formatTime(pic.favoriteTime) }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -764,7 +858,7 @@
       <!-- STATS -->
       <div v-else-if="isLoggedIn && activeTab === 'stats'">
         <h2 class="text-2xl font-bold text-gray-800 mb-6">数据统计</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 mb-8">
           <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
             <div class="flex items-center justify-between">
               <div>
@@ -814,6 +908,28 @@
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-6 text-white shadow-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-red-100 text-sm">收到点赞</p>
+                <p class="text-3xl font-bold mt-1">{{ globalStats.receivedLikeCount || 0 }}</p>
+              </div>
+              <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-cyan-100 text-sm">收到评论</p>
+                <p class="text-3xl font-bold mt-1">{{ globalStats.receivedCommentCount || 0 }}</p>
+              </div>
+              <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
               </div>
             </div>
           </div>
@@ -1099,6 +1215,68 @@
           <p class="text-xs text-gray-500 mb-4">
             {{ formatTime(currentPicture.createTime) }} · {{ formatSize(currentPicture.size) }}
           </p>
+          <div v-if="currentPicture.userId === currentUser?.id" class="mb-3">
+            <button @click="togglePicturePublic"
+              :class="['inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition',
+                currentPicture.isPublic ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">
+              <svg v-if="currentPicture.isPublic" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>{{ currentPicture.isPublic ? '公开' : '私密' }}</span>
+            </button>
+          </div>
+          <div class="flex items-center space-x-4 mb-5 pb-4 border-b border-gray-100">
+            <button @click="toggleLike" class="flex items-center space-x-1.5 group transition">
+              <svg v-if="currentPicture.isLiked" class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <svg v-else class="w-5 h-5 text-gray-400 group-hover:text-red-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+              <span :class="['text-sm font-medium', currentPicture.isLiked ? 'text-red-500' : 'text-gray-500']">{{ currentPicture.likeCount || 0 }}</span>
+            </button>
+            <button @click="focusCommentInput" class="flex items-center space-x-1.5 group transition">
+              <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              <span class="text-sm font-medium text-gray-500">{{ currentPicture.commentCount || 0 }}</span>
+            </button>
+            <button @click="toggleFavorite" class="flex items-center space-x-1.5 group transition">
+              <svg v-if="currentPicture.isFavorited" class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+              <svg v-else class="w-5 h-5 text-gray-400 group-hover:text-yellow-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+              <span :class="['text-sm font-medium', currentPicture.isFavorited ? 'text-yellow-500' : 'text-gray-500']">{{ currentPicture.favoriteCount || 0 }}</span>
+            </button>
+          </div>
+          <div class="mb-5">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center space-x-2">
+              <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              <span>评论 ({{ pictureComments.length }})</span>
+            </h4>
+            <div class="space-y-3 max-h-60 overflow-y-auto mb-3">
+              <div v-if="pictureComments.length === 0" class="text-center py-4 text-sm text-gray-400">暂无评论，来说点什么吧~</div>
+              <div v-for="comment in pictureComments" :key="comment.id" class="flex items-start space-x-2 p-2 rounded-lg hover:bg-gray-50 transition">
+                <div class="w-7 h-7 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {{ (comment.nickname || 'U').charAt(0).toUpperCase() }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-700">{{ comment.nickname || '未知用户' }}</span>
+                    <button v-if="currentPicture.userId === currentUser?.id || comment.userId === currentUser?.id" @click="deleteComment(comment.id)"
+                      class="text-xs text-gray-400 hover:text-red-500 transition">删除</button>
+                  </div>
+                  <p class="text-sm text-gray-600 mt-0.5 break-words">{{ comment.content }}</p>
+                  <span class="text-xs text-gray-400">{{ formatTime(comment.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex space-x-2">
+              <input ref="commentInput" v-model="newCommentContent" type="text" placeholder="写下你的评论..."
+                @keyup.enter="submitComment"
+                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button @click="submitComment" :disabled="!newCommentContent.trim()"
+                :class="['px-4 py-2 rounded-lg text-sm font-medium transition',
+                  newCommentContent.trim() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+                发送
+              </button>
+            </div>
+          </div>
           <div class="mb-5">
             <div class="flex items-center justify-between mb-2">
               <label class="text-sm font-semibold text-gray-700">所属专辑</label>
@@ -1419,6 +1597,8 @@ import axios from 'axios'
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
 const tabs = [
+  { id: 'discover', name: '发现' },
+  { id: 'favorites', name: '我的收藏' },
   { id: 'pictures', name: '图片墙' },
   { id: 'albums', name: '专辑' },
   { id: 'tags', name: '主题词' },
@@ -1526,7 +1706,7 @@ const doLogout = async () => {
     await api.post('/auth/logout')
   } catch (e) {}
   currentUser.value = null
-  pictures.value = []; allAlbums.value = []; allTags.value = []; globalStats.value = {}
+  pictures.value = []; allAlbums.value = []; allTags.value = []; globalStats.value = {}; discoverPictures.value = []; favoritePictures.value = []
   showToast('已退出登录')
 }
 const checkAuth = async () => {
@@ -1560,6 +1740,11 @@ const allAlbums = ref([])
 const allTags = ref([])
 const globalStats = ref({})
 const myShares = ref([])
+const discoverPictures = ref([])
+const favoritePictures = ref([])
+const pictureComments = ref([])
+const newCommentContent = ref('')
+const commentInput = ref(null)
 
 // Share modal
 const showShareModal = ref(false)
@@ -2077,6 +2262,109 @@ const editingPictureFields = ref(false)
 const editPictureAlbumIds = ref([])
 const editPictureTagInput = ref('')
 
+const fetchDiscoverPictures = async () => {
+  loading.value = true
+  try {
+    const res = await api.get('/discover')
+    if (res.data.success) discoverPictures.value = res.data.data || []
+  } catch (e) {} finally { loading.value = false }
+}
+
+const fetchMyFavorites = async () => {
+  loading.value = true
+  try {
+    const res = await api.get('/discover/favorites')
+    if (res.data.success) favoritePictures.value = res.data.data || []
+  } catch (e) {} finally { loading.value = false }
+}
+
+const fetchPictureComments = async (pictureId) => {
+  try {
+    const res = await api.get(`/interactions/pictures/${pictureId}/comments`)
+    if (res.data.success) pictureComments.value = res.data.data || []
+  } catch (e) {}
+}
+
+const viewDiscoverPicture = async (pic) => {
+  loading.value = true
+  try {
+    const res = await api.get(`/pictures/${pic.id}`)
+    if (res.data.success) {
+      currentPicture.value = res.data.data
+      showPictureDetail.value = true
+      await fetchPictureComments(pic.id)
+    }
+  } catch (e) { showToast('无法查看该图片', 'error') } finally { loading.value = false }
+}
+
+const toggleLike = async () => {
+  try {
+    const res = await api.post(`/interactions/pictures/${currentPicture.value.id}/like`)
+    if (res.data.success) {
+      const data = res.data.data
+      currentPicture.value.isLiked = data.liked
+      currentPicture.value.likeCount = data.likeCount
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const toggleFavorite = async () => {
+  try {
+    const res = await api.post(`/interactions/pictures/${currentPicture.value.id}/favorite`)
+    if (res.data.success) {
+      const data = res.data.data
+      currentPicture.value.isFavorited = data.favorited
+      currentPicture.value.favoriteCount = data.favoriteCount
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const togglePicturePublic = async () => {
+  try {
+    const newPublic = !currentPicture.value.isPublic
+    const res = await api.put(`/pictures/${currentPicture.value.id}`, { isPublic: newPublic })
+    if (res.data.success) {
+      currentPicture.value = res.data.data
+      showToast(newPublic ? '已设为公开' : '已设为私密')
+      await fetchAll()
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const focusCommentInput = () => {
+  if (commentInput.value) commentInput.value.focus()
+}
+
+const submitComment = async () => {
+  if (!newCommentContent.value.trim()) return
+  try {
+    const res = await api.post(`/interactions/pictures/${currentPicture.value.id}/comments`, {
+      content: newCommentContent.value.trim()
+    })
+    if (res.data.success) {
+      newCommentContent.value = ''
+      await fetchPictureComments(currentPicture.value.id)
+      currentPicture.value.commentCount = pictureComments.value.length
+      showToast('评论成功')
+    } else {
+      showToast(res.data.message || '评论失败', 'error')
+    }
+  } catch (e) { showToast('评论失败', 'error') }
+}
+
+const deleteComment = async (commentId) => {
+  try {
+    const res = await api.delete(`/interactions/comments/${commentId}`)
+    if (res.data.success) {
+      await fetchPictureComments(currentPicture.value.id)
+      currentPicture.value.commentCount = pictureComments.value.length
+      showToast('评论已删除')
+    } else {
+      showToast(res.data.message || '删除失败', 'error')
+    }
+  } catch (e) { showToast('删除失败', 'error') }
+}
+
 const viewPicture = async (pic) => {
   loading.value = true
   try {
@@ -2084,12 +2372,15 @@ const viewPicture = async (pic) => {
     if (res.data.success) {
       currentPicture.value = res.data.data
       showPictureDetail.value = true
+      await fetchPictureComments(pic.id)
     }
   } catch (e) {} finally { loading.value = false }
 }
 const closePictureDetail = () => {
   showPictureDetail.value = false
   editingPictureFields.value = false
+  pictureComments.value = []
+  newCommentContent.value = ''
 }
 const startEditPictureFields = () => {
   editingPictureFields.value = true
@@ -2355,7 +2646,7 @@ const fetchRecycleBin = async () => {
   } catch (e) {}
 }
 const fetchAll = async () => {
-  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares()])
+  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites()])
 }
 
 // Watch tab changes
@@ -2367,6 +2658,8 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
   if (newVal === 'shares') await fetchShares()
+  if (newVal === 'discover') await fetchDiscoverPictures()
+  if (newVal === 'favorites') await fetchMyFavorites()
 })
 
 onMounted(async () => {

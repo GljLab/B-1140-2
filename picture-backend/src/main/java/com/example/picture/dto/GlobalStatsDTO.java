@@ -9,4 +9,6 @@ public class GlobalStatsDTO {
     private Long pictureCount;
     private Long totalStorageSize;
     private List<TagDTO> topTags;
+    private Long receivedLikeCount;
+    private Long receivedCommentCount;
 }

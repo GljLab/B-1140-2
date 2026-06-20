@@ -26,6 +26,9 @@ public class Picture {
     private Boolean deleted = false;
     private Date deleteTime;
 
+    @Column(nullable = false)
+    private Boolean isPublic = false;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "picture_album",

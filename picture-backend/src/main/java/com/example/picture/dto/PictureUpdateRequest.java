@@ -7,4 +7,5 @@ import java.util.List;
 public class PictureUpdateRequest {
     private List<Long> albumIds;
     private List<String> tagNames;
+    private Boolean isPublic;
 }

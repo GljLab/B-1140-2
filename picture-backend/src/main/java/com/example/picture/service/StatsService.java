@@ -22,6 +22,9 @@ public class StatsService {
     @Autowired
     private TagService tagService;
 
+    @Autowired
+    private InteractionService interactionService;
+
     public GlobalStatsDTO getGlobalStats(Long userId) {
         GlobalStatsDTO stats = new GlobalStatsDTO();
         stats.setAlbumCount(albumRepository.countByUserId(userId));
@@ -30,6 +33,8 @@ public class StatsService {
         stats.setTotalStorageSize(totalSize != null ? totalSize : 0L);
         List<TagDTO> topTags = tagService.getTopTags(10, userId);
         stats.setTopTags(topTags);
+        stats.setReceivedLikeCount(interactionService.countReceivedLikes(userId));
+        stats.setReceivedCommentCount(interactionService.countReceivedComments(userId));
         return stats;
     }
 }

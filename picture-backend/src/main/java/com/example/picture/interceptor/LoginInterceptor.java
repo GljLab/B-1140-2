@@ -57,6 +57,7 @@ public class LoginInterceptor implements HandlerInterceptor {
     private boolean isPublicPath(String uri) {
         return uri.startsWith("/api/auth/login")
                 || uri.startsWith("/api/auth/register")
+                || uri.startsWith("/api/discover")
                 || uri.startsWith("/images/")
                 || uri.endsWith(".css")
                 || uri.endsWith(".js")

@@ -5,9 +5,11 @@ import com.example.picture.dto.*;
 import com.example.picture.entity.Album;
 import com.example.picture.entity.Picture;
 import com.example.picture.entity.Tag;
+import com.example.picture.entity.User;
 import com.example.picture.repository.AlbumRepository;
 import com.example.picture.repository.PictureRepository;
 import com.example.picture.repository.TagRepository;
+import com.example.picture.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,12 @@ public class PictureService {
 
     @Autowired
     private TagService tagService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private InteractionService interactionService;
 
     @Value("${upload.path:/app/images/}")
     private String uploadPath;
@@ -107,7 +115,7 @@ public class PictureService {
         picture.setTags(tags);
 
         Picture saved = pictureRepository.save(picture);
-        return toDTO(saved);
+        return toDTO(saved, userId);
     }
 
     public List<PictureDTO> listPictures(Long albumId, Long tagId, String keyword, Long userId) {
@@ -121,15 +129,18 @@ public class PictureService {
         } else {
             pictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
         }
-        return pictures.stream().map(this::toDTO).collect(Collectors.toList());
+        return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
     }
 
     public PictureDTO getPicture(Long id, Long userId) {
         Picture picture = pictureRepository.findById(id).orElse(null);
-        if (picture == null || !picture.getUserId().equals(userId)) {
+        if (picture == null || Boolean.TRUE.equals(picture.getDeleted())) {
             throw new RuntimeException("图片不存在");
         }
-        return toDTO(picture);
+        if (!picture.getUserId().equals(userId) && !Boolean.TRUE.equals(picture.getIsPublic())) {
+            throw new RuntimeException("图片不存在");
+        }
+        return toDTO(picture, userId);
     }
 
     @Transactional
@@ -137,6 +148,10 @@ public class PictureService {
         Picture picture = pictureRepository.findById(id).orElse(null);
         if (picture == null || !picture.getUserId().equals(userId)) {
             throw new RuntimeException("图片不存在");
+        }
+
+        if (request.getIsPublic() != null) {
+            picture.setIsPublic(request.getIsPublic());
         }
 
         if (request.getAlbumIds() != null) {
@@ -180,7 +195,7 @@ public class PictureService {
         }
 
         Picture saved = pictureRepository.save(picture);
-        return toDTO(saved);
+        return toDTO(saved, userId);
     }
 
     @Transactional
@@ -342,6 +357,10 @@ public class PictureService {
     }
 
     public PictureDTO toDTO(Picture picture) {
+        return toDTO(picture, null);
+    }
+
+    public PictureDTO toDTO(Picture picture, Long currentUserId) {
         PictureDTO dto = new PictureDTO();
         dto.setId(picture.getId());
         dto.setName(picture.getName());
@@ -351,6 +370,19 @@ public class PictureService {
         dto.setUpdateTime(picture.getUpdateTime());
         dto.setDeleted(picture.getDeleted());
         dto.setDeleteTime(picture.getDeleteTime());
+        dto.setIsPublic(picture.getIsPublic());
+        dto.setUserId(picture.getUserId());
+
+        userRepository.findById(picture.getUserId()).ifPresent(user -> {
+            dto.setAuthorNickname(user.getNickname() != null ? user.getNickname() : user.getUsername());
+        });
+
+        dto.setLikeCount(interactionService.getLikeCount(picture.getId()));
+        dto.setCommentCount(interactionService.getCommentCount(picture.getId()));
+        dto.setFavoriteCount(interactionService.getFavoriteCount(picture.getId()));
+        dto.setIsLiked(interactionService.isLiked(picture.getId(), currentUserId));
+        dto.setIsFavorited(interactionService.isFavorited(picture.getId(), currentUserId));
+
         if (Boolean.TRUE.equals(picture.getDeleted()) && picture.getDeleteTime() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(picture.getDeleteTime());
