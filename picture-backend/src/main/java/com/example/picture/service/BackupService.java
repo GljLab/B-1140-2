@@ -5,6 +5,8 @@ import com.example.picture.entity.*;
 import com.example.picture.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import org.hibernate.Hibernate;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -30,6 +33,8 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 public class BackupService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BackupService.class);
 
     @Autowired
     private BackupRepository backupRepository;
@@ -62,12 +67,33 @@ public class BackupService {
 
     @PostConstruct
     public void init() {
-        File backupDir = new File(backupPath);
-        if (!backupDir.exists()) {
-            backupDir.mkdirs();
-        }
+        ensureBackupDir();
         objectMapper = new ObjectMapper();
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+    }
+
+    private void ensureBackupDir() {
+        try {
+            File backupDir = new File(backupPath);
+            if (!backupDir.exists()) {
+                boolean created = backupDir.mkdirs();
+                logger.info("备份目录创建状态: {}, 路径: {}", created, backupDir.getAbsolutePath());
+            } else {
+                logger.info("备份目录已存在: {}", backupDir.getAbsolutePath());
+            }
+            if (!backupDir.isDirectory()) {
+                throw new RuntimeException("备份路径不是目录: " + backupPath);
+            }
+            if (!backupDir.canWrite()) {
+                throw new RuntimeException("备份目录不可写: " + backupPath);
+            }
+        } catch (Exception e) {
+            logger.error("初始化备份目录失败", e);
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException("初始化备份目录失败: " + e.getMessage(), e);
+        }
     }
 
     public byte[] exportAlbum(Long albumId, String quality, String format, Long userId) throws IOException {
@@ -117,34 +143,61 @@ public class BackupService {
     public BackupDTO createFullBackup(Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("用户不存在"));
 
+        logger.info("开始创建全量备份, 用户ID: {}, 用户名: {}", userId, user.getUsername());
+
+        List<Picture> pictures = pictureRepository.findByUserIdWithDetails(userId);
+        List<Album> albums = albumRepository.findByUserIdWithPictures(userId);
+        List<Tag> tags = tagRepository.findByUserIdOrderByReferenceCountDescCreateTimeDesc(userId);
+
+        for (Album album : albums) {
+            for (Picture ap : album.getPictures()) {
+                Hibernate.initialize(ap);
+            }
+        }
+
         Backup backup = new Backup();
         backup.setUserId(userId);
         backup.setStatus("PROCESSING");
+        backup.setPictureCount(pictures.size());
+        backup.setAlbumCount(albums.size());
+        backup.setTagCount(tags.size());
 
         String dateStr = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String fileName = "backup_" + user.getUsername() + "_" + dateStr + ".zip";
-        String filePath = backupPath + fileName;
+        String fileName = "backup_" + sanitizeFileName(user.getUsername()) + "_" + dateStr + ".zip";
+        String filePath = backupPath.endsWith(File.separator) ? backupPath + fileName : backupPath + File.separator + fileName;
 
         backup.setFileName(fileName);
         backup.setFilePath(filePath);
 
         Backup saved = backupRepository.save(backup);
+        logger.info("备份任务已创建, ID: {}, 文件路径: {}", saved.getId(), filePath);
+
+        final List<Picture> finalPictures = pictures;
+        final List<Album> finalAlbums = albums;
+        final List<Tag> finalTags = tags;
 
         new Thread(() -> {
             try {
-                doFullBackup(saved.getId(), userId, user.getUsername());
+                doFullBackup(saved.getId(), userId, user.getUsername(), finalPictures, finalAlbums, finalTags);
             } catch (Exception e) {
-                updateBackupStatus(saved.getId(), "FAILED", e.getMessage());
+                logger.error("全量备份执行失败, 备份ID: {}", saved.getId(), e);
+                String errorMsg = e.getMessage();
+                if (errorMsg == null || errorMsg.isEmpty()) {
+                    errorMsg = e.getClass().getSimpleName();
+                }
+                updateBackupStatus(saved.getId(), "FAILED", errorMsg);
             }
-        }).start();
+        }, "BackupThread-" + saved.getId()).start();
 
         return toDTO(saved);
     }
 
-    private void doFullBackup(Long backupId, Long userId, String username) throws IOException {
-        List<Picture> pictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
-        List<Album> albums = albumRepository.findByUserIdOrderByDisplayOrderAscCreateTimeAsc(userId);
-        List<Tag> tags = tagRepository.findByUserIdOrderByReferenceCountDescCreateTimeDesc(userId);
+    private void doFullBackup(Long backupId, Long userId, String username,
+                            List<Picture> pictures, List<Album> albums, List<Tag> tags) throws IOException {
+        logger.info("开始执行全量备份, 备份ID: {}, 用户: {}, 图片数: {}, 专辑数: {}, 标签数: {}",
+                backupId, username, pictures.size(), albums.size(), tags.size());
+
+        ensureBackupDir();
 
         BackupMetadata metadata = new BackupMetadata();
         metadata.setVersion("1.0");
@@ -152,28 +205,41 @@ public class BackupService {
         metadata.setUsername(username);
 
         List<BackupMetadata.BackupPicture> picList = new ArrayList<>();
+        Set<String> processedPicNames = new HashSet<>();
         for (Picture pic : pictures) {
             BackupMetadata.BackupPicture bp = new BackupMetadata.BackupPicture();
             bp.setName(pic.getName());
-            bp.setFileName(pic.getUrl().replace("/images/", ""));
+            String picFileName;
+            if (pic.getUrl() != null) {
+                int idx = pic.getUrl().lastIndexOf('/');
+                picFileName = idx >= 0 ? pic.getUrl().substring(idx + 1) : pic.getUrl();
+            } else {
+                picFileName = "";
+            }
+            bp.setFileName(picFileName);
             bp.setSize(pic.getSize());
             bp.setCreateTime(pic.getCreateTime() != null ? pic.getCreateTime().toString() : null);
             bp.setUpdateTime(pic.getUpdateTime() != null ? pic.getUpdateTime().toString() : null);
             bp.setIsPublic(pic.getIsPublic());
 
             List<String> tagNames = new ArrayList<>();
-            for (Tag tag : pic.getTags()) {
-                tagNames.add(tag.getName());
+            if (pic.getTags() != null) {
+                for (Tag tag : pic.getTags()) {
+                    tagNames.add(tag.getName());
+                }
             }
             bp.setTags(tagNames);
 
             List<String> albumNames = new ArrayList<>();
-            for (Album album : pic.getAlbums()) {
-                albumNames.add(album.getName());
+            if (pic.getAlbums() != null) {
+                for (Album album : pic.getAlbums()) {
+                    albumNames.add(album.getName());
+                }
             }
             bp.setAlbums(albumNames);
 
             picList.add(bp);
+            processedPicNames.add(pic.getName());
         }
         metadata.setPictures(picList);
 
@@ -191,9 +257,12 @@ public class BackupService {
             }
 
             List<String> picNames = new ArrayList<>();
-            for (Picture pic : album.getPictures()) {
-                if (!Boolean.TRUE.equals(pic.getDeleted())) {
-                    picNames.add(pic.getName());
+            if (album.getPictures() != null) {
+                for (Picture pic : album.getPictures()) {
+                    Boolean deleted = pic.getDeleted();
+                    if (deleted == null || !deleted) {
+                        picNames.add(pic.getName());
+                    }
                 }
             }
             ba.setPictureNames(picNames);
@@ -211,51 +280,97 @@ public class BackupService {
         metadata.setTags(tagList);
 
         String dateStr = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String fileName = "backup_" + username + "_" + dateStr + ".zip";
-        String filePath = backupPath + fileName;
+        String fileName = "backup_" + sanitizeFileName(username) + "_" + dateStr + ".zip";
+        String filePath = backupPath.endsWith(File.separator) ? backupPath + fileName : backupPath + File.separator + fileName;
 
-        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(filePath))) {
+        logger.info("开始写入备份文件: {}", filePath);
+
+        File backupFile = new File(filePath);
+        File parentDir = backupFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+
+        int count = 0;
+        try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(backupFile)))) {
             ZipEntry metadataEntry = new ZipEntry("metadata.json");
             zos.putNextEntry(metadataEntry);
             zos.write(objectMapper.writeValueAsBytes(metadata));
             zos.closeEntry();
+            logger.debug("写入metadata.json完成");
 
             ZipEntry picturesDir = new ZipEntry("pictures/");
             zos.putNextEntry(picturesDir);
             zos.closeEntry();
 
-            int count = 0;
+            Set<String> usedEntryNames = new HashSet<>();
             for (Picture pic : pictures) {
                 if (Boolean.TRUE.equals(pic.getDeleted())) continue;
-                String picFileName = pic.getUrl().replace("/images/", "");
-                File picFile = new File(uploadPath + picFileName);
+                String picFileName = "";
+                if (pic.getUrl() != null) {
+                    int idx = pic.getUrl().lastIndexOf('/');
+                    picFileName = idx >= 0 ? pic.getUrl().substring(idx + 1) : pic.getUrl();
+                }
+                String realUploadPath = uploadPath.endsWith(File.separator) ? uploadPath : uploadPath + File.separator;
+                File picFile = new File(realUploadPath + picFileName);
+                
                 if (picFile.exists()) {
-                    String entryName = "pictures/" + sanitizeFileName(pic.getName());
-                    if (entryName.lastIndexOf('.') == -1 && picFileName.lastIndexOf('.') > 0) {
-                        entryName += picFileName.substring(picFileName.lastIndexOf('.'));
+                    String baseEntryName = "pictures/" + sanitizeFileName(pic.getName());
+                    String ext = "";
+                    if (picFileName != null && picFileName.lastIndexOf('.') > 0) {
+                        ext = picFileName.substring(picFileName.lastIndexOf('.'));
                     }
+                    if (baseEntryName.lastIndexOf('.') == -1) {
+                        baseEntryName += ext;
+                    }
+
+                    String entryName = baseEntryName;
+                    int dupIdx = 1;
+                    while (usedEntryNames.contains(entryName)) {
+                        int dotIdx = baseEntryName.lastIndexOf('.');
+                        if (dotIdx > 0) {
+                            entryName = baseEntryName.substring(0, dotIdx) + "_" + dupIdx + baseEntryName.substring(dotIdx);
+                        } else {
+                            entryName = baseEntryName + "_" + dupIdx;
+                        }
+                        dupIdx++;
+                    }
+                    usedEntryNames.add(entryName);
+
                     ZipEntry entry = new ZipEntry(entryName);
                     zos.putNextEntry(entry);
-                    Files.copy(picFile.toPath(), zos);
+                    try (FileInputStream fis = new FileInputStream(picFile)) {
+                        byte[] buffer = new byte[8192];
+                        int len;
+                        while ((len = fis.read(buffer)) > 0) {
+                            zos.write(buffer, 0, len);
+                        }
+                    }
                     zos.closeEntry();
                     count++;
+                } else {
+                    logger.warn("图片文件不存在, 跳过: {}, 期望路径: {}", pic.getName(), picFile.getAbsolutePath());
                 }
             }
 
-            long fileSize = new File(filePath).length();
+            logger.info("备份文件写入完成, 共写入 {} 张图片", count);
+        }
 
-            Backup backup = backupRepository.findById(backupId).orElse(null);
-            if (backup != null) {
-                backup.setFileName(fileName);
-                backup.setFilePath(filePath);
-                backup.setFileSize(fileSize);
-                backup.setPictureCount(count);
-                backup.setAlbumCount(albums.size());
-                backup.setTagCount(tags.size());
-                backup.setStatus("COMPLETED");
-                backup.setCompleteTime(new Date());
-                backupRepository.save(backup);
-            }
+        long fileSize = backupFile.length();
+        logger.info("备份文件大小: {} bytes", fileSize);
+
+        Backup backup = backupRepository.findById(backupId).orElse(null);
+        if (backup != null) {
+            backup.setFileName(fileName);
+            backup.setFilePath(filePath);
+            backup.setFileSize(fileSize);
+            backup.setPictureCount(count);
+            backup.setAlbumCount(albums.size());
+            backup.setTagCount(tags.size());
+            backup.setStatus("COMPLETED");
+            backup.setCompleteTime(new Date());
+            backupRepository.save(backup);
+            logger.info("备份记录更新完成, 状态: COMPLETED");
         }
     }
 

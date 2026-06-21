@@ -27,4 +27,7 @@ public interface AlbumRepository extends JpaRepository<Album, Long> {
 
     @Query("SELECT a FROM Album a WHERE a.id = :id AND (a.userId = :userId OR EXISTS (SELECT 1 FROM AlbumCollaborator ac WHERE ac.albumId = a.id AND ac.userId = :userId))")
     Optional<Album> findAccessibleAlbumById(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT a FROM Album a LEFT JOIN FETCH a.pictures WHERE a.userId = :userId ORDER BY a.displayOrder ASC, a.createTime ASC")
+    List<Album> findByUserIdWithPictures(@Param("userId") Long userId);
 }

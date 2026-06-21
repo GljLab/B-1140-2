@@ -65,4 +65,10 @@ public interface PictureRepository extends JpaRepository<Picture, Long> {
 
     @Query("SELECT p FROM Picture p WHERE p.isPublic = true AND p.deleted = false AND p.userId = :userId ORDER BY p.createTime DESC")
     List<Picture> findPublicPicturesByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.albums LEFT JOIN FETCH p.tags WHERE p.userId = :userId AND p.deleted = false ORDER BY p.createTime DESC")
+    List<Picture> findByUserIdWithDetails(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.tags WHERE p.userId = :userId AND p.deleted = false")
+    List<Picture> findByUserIdWithTags(@Param("userId") Long userId);
 }
