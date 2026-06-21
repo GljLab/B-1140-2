@@ -32,6 +32,9 @@
               <svg v-if="tab.id === 'tags'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
+              <svg v-if="tab.id === 'collage'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+              </svg>
               <svg v-if="tab.id === 'recycle'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
@@ -350,6 +353,25 @@
                 </svg>
                 <span>对比模式</span>
               </button>
+              <div class="relative" ref="toolsMenuRef">
+                <button @click="showToolsMenu = !showToolsMenu"
+                  class="px-4 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition flex items-center space-x-1">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>工具</span>
+                </button>
+                <div v-if="showToolsMenu" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
+                  <button @click="showToolsMenu = false; if (selectedPictureIds.length >= 2) { openCollageEditor() } else { showToast('请先选择至少2张图片', 'warning') }"
+                    class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+                    </svg>
+                    <span>制作拼图</span>
+                  </button>
+                </div>
+              </div>
               <span v-if="multiSelectMode && selectedPictureIds.length > 0" class="text-sm text-blue-600 font-medium">
                 已选 {{ selectedPictureIds.length }} 张
               </span>
@@ -427,6 +449,15 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
               </svg>
               <span>开始对比</span>
+            </span>
+          </button>
+          <button v-if="selectedPictureIds.length >= 2" @click="openCollageEditor"
+            class="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+              </svg>
+              <span>制作拼图</span>
             </span>
           </button>
           <button @click="showBatchTagModal = true"
@@ -784,6 +815,15 @@
           @view="handleViewStory"
           @delete="onStoryDeleted"
         />
+      </div>
+
+      <!-- COLLAGE EDITOR -->
+      <div v-else-if="isLoggedIn && activeTab === 'collage'">
+        <CollageEditor ref="collageEditorRef"
+          :initial-pictures="collageInitialPictures"
+          @back="activeTab = 'pictures'; collageInitialPictures = []"
+          @add-pictures="showCollagePicturePicker = true"
+          @toast="showToast" />
       </div>
 
       <!-- WATERMARK CONFIG -->
@@ -2640,6 +2680,45 @@
       @close="onCompareClosed"
       @saved="onCompareSaved"
     />
+
+    <div v-if="showCollagePicturePicker" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showCollagePicturePicker = false"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden">
+        <div class="bg-gradient-to-r from-orange-500 to-pink-600 px-6 py-4 flex items-center justify-between">
+          <h3 class="text-white font-semibold text-lg">选择图片添加到拼图</h3>
+          <button @click="showCollagePicturePicker = false" class="text-white/80 hover:text-white transition">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div class="p-6">
+          <div class="mb-4 flex items-center space-x-2">
+            <input type="checkbox" v-model="multiSelectMode" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+            <span class="text-sm text-gray-600">多选模式</span>
+            <span v-if="selectedPictureIds.length > 0" class="text-sm text-blue-600 font-medium">已选 {{ selectedPictureIds.length }} 张</span>
+          </div>
+          <div v-if="pictures.length === 0" class="text-center py-10 text-gray-400">暂无图片</div>
+          <div v-else class="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-96 overflow-y-auto">
+            <div v-for="pic in pictures" :key="pic.id" class="relative cursor-pointer group" @click="toggleCollagePickerPicture(pic.id)">
+              <div :class="['aspect-square rounded-lg overflow-hidden border-2 transition',
+                selectedPictureIds.includes(pic.id) ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent hover:border-gray-300']">
+                <img :src="pic.url" class="w-full h-full object-cover" />
+              </div>
+              <div v-if="selectedPictureIds.includes(pic.id)" class="absolute top-1 right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end space-x-3">
+            <button @click="showCollagePicturePicker = false" class="px-5 py-2 text-gray-600 hover:text-gray-800 transition text-sm">取消</button>
+            <button @click="addPicturesToCollage" :disabled="selectedPictureIds.length === 0"
+              :class="['px-5 py-2 rounded-lg text-sm font-medium transition',
+                selectedPictureIds.length > 0 ? 'bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed']">
+              添加 {{ selectedPictureIds.length > 0 ? selectedPictureIds.length + ' 张' : '' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -2652,6 +2731,7 @@ import StoryList from './components/StoryList.vue'
 import StoryEditor from './components/StoryEditor.vue'
 import StoryDetail from './components/StoryDetail.vue'
 import ImageCompare from './components/ImageCompare.vue'
+import CollageEditor from './components/CollageEditor.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -2663,6 +2743,7 @@ const tabs = [
   { id: 'albums', name: '专辑' },
   { id: 'stories', name: '故事' },
   { id: 'tags', name: '主题词' },
+  { id: 'collage', name: '拼图' },
   { id: 'watermark', name: '水印' },
   { id: 'backup', name: '备份与恢复' },
   { id: 'recycle', name: '回收站' },
@@ -2894,6 +2975,42 @@ const onCompareClosed = () => {
   existingComparison.value = null
 }
 
+const openCollageEditor = () => {
+  const pics = pictures.value.filter(p => selectedPictureIds.value.includes(p.id))
+  if (pics.length < 2) {
+    showToast('请选择至少2张图片制作拼图', 'warning')
+    return
+  }
+  collageInitialPictures.value = pics
+  selectedPictureIds.value = []
+  multiSelectMode.value = false
+  activeTab.value = 'collage'
+}
+
+const addPicturesToCollage = () => {
+  const pics = pictures.value.filter(p => selectedPictureIds.value.includes(p.id))
+  if (pics.length === 0) {
+    showToast('请选择图片', 'warning')
+    return
+  }
+  if (collageEditorRef.value) {
+    collageEditorRef.value.addPicturesFromOutside(pics)
+  }
+  selectedPictureIds.value = []
+  showCollagePicturePicker.value = false
+  activeTab.value = 'collage'
+}
+
+const toggleCollagePickerPicture = (id) => {
+  if (!multiSelectMode.value) multiSelectMode.value = true
+  const idx = selectedPictureIds.value.indexOf(id)
+  if (idx >= 0) {
+    selectedPictureIds.value.splice(idx, 1)
+  } else {
+    selectedPictureIds.value.push(id)
+  }
+}
+
 const onCompareSaved = (result) => {
   showToast('对比已保存')
 }
@@ -2905,6 +3022,11 @@ const multiSelectMode = ref(false)
 const selectedPictureIds = ref([])
 const recycleMultiSelectMode = ref(false)
 const selectedRecyclePictureIds = ref([])
+
+const collageEditorRef = ref(null)
+const collageInitialPictures = ref([])
+const showCollagePicturePicker = ref(false)
+const showToolsMenu = ref(false)
 
 // Watermark
 const watermarkConfig = reactive({
@@ -4588,6 +4710,7 @@ const fetchAll = async () => {
 
 // Watch tab changes
 watch(activeTab, async (newVal) => {
+  showToolsMenu.value = false
   if (!isLoggedIn.value) return
   if (newVal === 'pictures' && pictures.value.length === 0) await fetchPictures()
   if (newVal === 'recycle') await fetchRecycleBin()
