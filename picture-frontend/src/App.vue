@@ -3235,8 +3235,10 @@ const viewPicture = async (pic) => {
       currentPicture.value = res.data.data
       showPictureDetail.value = true
       await fetchPictureComments(pic.id)
+    } else {
+      showToast(res.data.message || '图片不存在或无权限查看', 'error')
     }
-  } catch (e) {} finally { loading.value = false }
+  } catch (e) { showToast('加载图片详情失败', 'error') } finally { loading.value = false }
 }
 const closePictureDetail = () => {
   showPictureDetail.value = false

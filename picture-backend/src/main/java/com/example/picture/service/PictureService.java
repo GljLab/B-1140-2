@@ -187,16 +187,38 @@ public class PictureService {
     }
 
     public List<PictureDTO> listAlbumPictures(Long albumId, Long userId) {
+        com.example.picture.entity.Album album = albumRepository.findById(albumId).orElse(null);
+        if (album == null) {
+            throw new RuntimeException("专辑不存在");
+        }
+        boolean isOwner = album.getUserId().equals(userId);
+        boolean isCollaborator = albumCollaboratorRepository.existsByAlbumIdAndUserId(albumId, userId);
+        if (!isOwner && !isCollaborator) {
+            throw new RuntimeException("无权限访问此专辑");
+        }
         List<Picture> pictures = pictureRepository.findByAlbumId(albumId);
         return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public PictureDTO getPicture(Long id, Long userId) {
         Picture picture = pictureRepository.findById(id).orElse(null);
         if (picture == null || Boolean.TRUE.equals(picture.getDeleted())) {
             throw new RuntimeException("图片不存在");
         }
-        if (!picture.getUserId().equals(userId) && !Boolean.TRUE.equals(picture.getIsPublic())) {
+        boolean isOwner = picture.getUserId().equals(userId);
+        boolean isPublic = Boolean.TRUE.equals(picture.getIsPublic());
+        boolean canAccessViaAlbum = false;
+        if (!isOwner && !isPublic) {
+            for (com.example.picture.entity.Album album : picture.getAlbums()) {
+                if (album.getUserId().equals(userId) ||
+                    albumCollaboratorRepository.existsByAlbumIdAndUserId(album.getId(), userId)) {
+                    canAccessViaAlbum = true;
+                    break;
+                }
+            }
+        }
+        if (!isOwner && !isPublic && !canAccessViaAlbum) {
             throw new RuntimeException("图片不存在");
         }
         return toDTO(picture, userId);
