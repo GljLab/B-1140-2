@@ -38,6 +38,9 @@
               <svg v-if="tab.id === 'watermark'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
               </svg>
+              <svg v-if="tab.id === 'backup'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
               <svg v-if="tab.id === 'stats'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -433,6 +436,15 @@
               <span>批量归专辑</span>
             </span>
           </button>
+          <button @click="openExportOptions('pictures', null)"
+            class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>批量导出</span>
+            </span>
+          </button>
           <button @click="confirmBatchDelete"
             class="px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
             <span class="flex items-center space-x-1">
@@ -697,6 +709,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   <span>协作管理</span>
+                </button>
+                <button v-if="currentAlbumDetail.userRole === 'OWNER' || currentAlbumDetail.userRole === 'COLLABORATOR'"
+                  @click="openExportOptions('album', currentAlbumDetail.id)"
+                  class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition flex items-center space-x-1">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>导出专辑</span>
                 </button>
                 <button v-if="currentAlbumDetail.userRole === 'OWNER' || currentAlbumDetail.userRole === 'COLLABORATOR'"
                   @click="openEditAlbum(currentAlbumDetail)"
@@ -1110,6 +1130,93 @@
               </div>
               <div class="p-3">
                 <h3 class="text-sm font-medium text-gray-800 truncate">{{ pic.name }}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKUP & RESTORE -->
+      <div v-else-if="isLoggedIn && activeTab === 'backup'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">备份与恢复</h2>
+            <p class="text-sm text-gray-500 mt-1">备份您的图片库数据，防止数据丢失</p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <button @click="showRestoreModal = true"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition flex items-center space-x-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>恢复备份</span>
+            </button>
+            <button @click="createBackup" :disabled="creatingBackup"
+              class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition text-sm font-medium flex items-center space-x-1 disabled:opacity-50">
+              <svg v-if="creatingBackup" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              <span>{{ creatingBackup ? '创建中...' : '创建备份' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="backupLoading" class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div></div>
+        <div v-else-if="backups.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div class="text-6xl mb-4">📦</div>
+          <h3 class="text-xl font-medium text-gray-500">暂无备份记录</h3>
+          <p class="text-sm text-gray-400 mt-2">点击上方"创建备份"按钮，备份您的所有图片和数据</p>
+        </div>
+        <div v-else class="space-y-4">
+          <div v-for="backup in backups" :key="backup.id"
+            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-gray-800">{{ backup.fileName }}</h3>
+                  <div class="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                    <span>📅 {{ formatTime(backup.createTime) }}</span>
+                    <span>📦 {{ formatSize(backup.fileSize) }}</span>
+                    <span>🖼️ {{ backup.pictureCount || 0 }} 张图片</span>
+                    <span v-if="backup.albumCount">📁 {{ backup.albumCount }} 个专辑</span>
+                    <span v-if="backup.tagCount">🏷️ {{ backup.tagCount }} 个主题词</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span v-if="backup.status === 'PENDING' || backup.status === 'PROCESSING'"
+                  class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  处理中
+                </span>
+                <span v-else-if="backup.status === 'COMPLETED'"
+                  class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  已完成
+                </span>
+                <span v-else-if="backup.status === 'FAILED'"
+                  class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  失败
+                </span>
+                <button v-if="backup.status === 'COMPLETED'" @click="downloadBackup(backup.id)"
+                  class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="下载">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
+                <button @click="confirmDeleteBackup(backup.id)"
+                  class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="删除">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -1919,6 +2026,155 @@
       </div>
     </div>
 
+    <!-- Export Options Modal -->
+    <div v-if="showExportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showExportModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">导出设置</h3>
+          <button @click="showExportModal = false" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">图片质量</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button @click="exportOptions.quality = 'original'"
+                :class="['p-3 rounded-xl border-2 text-center transition',
+                  exportOptions.quality === 'original' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                <div class="text-base font-semibold">原图</div>
+                <div class="text-xs text-gray-400 mt-1">保持原始质量</div>
+              </button>
+              <button @click="exportOptions.quality = 'compressed'"
+                :class="['p-3 rounded-xl border-2 text-center transition',
+                  exportOptions.quality === 'compressed' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                <div class="text-base font-semibold">压缩</div>
+                <div class="text-xs text-gray-400 mt-1">长边≤1920px</div>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">导出格式</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button @click="exportOptions.format = 'original'"
+                :class="['p-3 rounded-xl border-2 text-center transition',
+                  exportOptions.format === 'original' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                <div class="text-base font-semibold">原格式</div>
+                <div class="text-xs text-gray-400 mt-1">保留原始格式</div>
+              </button>
+              <button @click="exportOptions.format = 'jpg'"
+                :class="['p-3 rounded-xl border-2 text-center transition',
+                  exportOptions.format === 'jpg' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                <div class="text-base font-semibold">统一JPG</div>
+                <div class="text-xs text-gray-400 mt-1">体积更小</div>
+              </button>
+            </div>
+          </div>
+          <div v-if="exportType === 'pictures'" class="p-3 bg-blue-50 rounded-xl">
+            <p class="text-sm text-blue-700">将导出 <span class="font-semibold">{{ selectedPictureIds.length }}</span> 张图片</p>
+          </div>
+          <div v-if="exportType === 'album'" class="p-3 bg-blue-50 rounded-xl">
+            <p class="text-sm text-blue-700">将导出专辑中的所有图片</p>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+          <button @click="showExportModal = false"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">取消</button>
+          <button @click="doExport" :disabled="exporting"
+            :class="['px-5 py-2 rounded-lg font-medium text-sm transition flex items-center space-x-1',
+              exporting ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600']">
+            <svg v-if="exporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ exporting ? '打包中...' : '开始导出' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restore Modal -->
+    <div v-if="showRestoreModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showRestoreModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">恢复备份</h3>
+          <button @click="showRestoreModal = false" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">选择备份文件</label>
+            <div @click="$refs.restoreFileInput.click()"
+              class="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-300 transition">
+              <svg class="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="text-sm text-gray-600">{{ restoreFileName || '点击选择备份ZIP文件' }}</p>
+              <p class="text-xs text-gray-400 mt-1">支持 .zip 格式</p>
+              <input ref="restoreFileInput" type="file" accept=".zip" class="hidden" @change="onRestoreFileChange" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">重复图片处理方式</label>
+            <div class="space-y-2">
+              <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" v-model="restoreStrategy" value="skip" class="w-4 h-4 text-blue-600" />
+                <div>
+                  <p class="text-sm font-medium text-gray-700">跳过</p>
+                  <p class="text-xs text-gray-400">遇到同名图片时跳过不导入</p>
+                </div>
+              </label>
+              <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" v-model="restoreStrategy" value="overwrite" class="w-4 h-4 text-blue-600" />
+                <div>
+                  <p class="text-sm font-medium text-gray-700">覆盖</p>
+                  <p class="text-xs text-gray-400">遇到同名图片时覆盖现有图片</p>
+                </div>
+              </label>
+              <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" v-model="restoreStrategy" value="keep_both" class="w-4 h-4 text-blue-600" />
+                <div>
+                  <p class="text-sm font-medium text-gray-700">保留两者</p>
+                  <p class="text-xs text-gray-400">遇到同名图片时重命名新图片</p>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div v-if="restoreResult" class="p-4 rounded-xl" :class="restoreResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+            <p v-if="restoreResult.success" class="text-sm text-green-700 font-medium">恢复成功！</p>
+            <p v-else class="text-sm text-red-700 font-medium">恢复失败</p>
+            <div v-if="restoreResult.success" class="mt-2 space-y-1 text-xs text-green-600">
+              <p>恢复图片: {{ restoreResult.restoredPictures }} 张</p>
+              <p>恢复专辑: {{ restoreResult.restoredAlbums }} 个</p>
+              <p>恢复主题词: {{ restoreResult.restoredTags }} 个</p>
+              <p v-if="restoreResult.skippedPictures > 0">跳过图片: {{ restoreResult.skippedPictures }} 张</p>
+            </div>
+            <p v-if="!restoreResult.success && restoreResult.message" class="text-xs text-red-600 mt-1">{{ restoreResult.message }}</p>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+          <button @click="showRestoreModal = false"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">关闭</button>
+          <button @click="doRestore" :disabled="!restoreFileName || restoring"
+            :class="['px-5 py-2 rounded-lg font-medium text-sm transition flex items-center space-x-1',
+              (restoreFileName && !restoring) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+            <svg v-if="restoring" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ restoring ? '恢复中...' : '开始恢复' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Share Modal -->
     <div v-if="showShareModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closeShareModal"></div>
@@ -2378,6 +2634,7 @@ const tabs = [
   { id: 'stories', name: '故事' },
   { id: 'tags', name: '主题词' },
   { id: 'watermark', name: '水印' },
+  { id: 'backup', name: '备份与恢复' },
   { id: 'recycle', name: '回收站' },
   { id: 'stats', name: '统计' },
   { id: 'shares', name: '我的分享' }
@@ -3341,6 +3598,218 @@ const doBatchAlbum = async () => {
   } catch (e) { showToast('操作失败', 'error') }
 }
 
+const showExportModal = ref(false)
+const exportType = ref('')
+const exportAlbumId = ref(null)
+const exporting = ref(false)
+const exportOptions = reactive({
+  quality: 'original',
+  format: 'original'
+})
+
+const openExportOptions = (type, albumId) => {
+  exportType.value = type
+  exportAlbumId.value = albumId
+  exportOptions.quality = 'original'
+  exportOptions.format = 'original'
+  showExportModal.value = true
+}
+
+const downloadBlob = (blob, filename) => {
+  const url = window.URL.createObjectURL(new Blob([blob]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+const doExport = async () => {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    if (exportType.value === 'album' && exportAlbumId.value) {
+      const res = await api.post(`/backup/export/album/${exportAlbumId.value}`, null, {
+        params: {
+          quality: exportOptions.quality,
+          format: exportOptions.format
+        },
+        responseType: 'blob'
+      })
+      const disposition = res.headers['content-disposition']
+      let filename = 'album_export.zip'
+      if (disposition) {
+        const matches = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (matches && matches[1]) {
+          filename = decodeURIComponent(matches[1].replace(/['"]/g, ''))
+        }
+      }
+      downloadBlob(res.data, filename)
+      showToast('导出成功')
+      showExportModal.value = false
+    } else if (exportType.value === 'pictures' && selectedPictureIds.value.length > 0) {
+      const res = await api.post('/backup/export/pictures', {
+        pictureIds: selectedPictureIds.value,
+        quality: exportOptions.quality,
+        format: exportOptions.format
+      }, {
+        responseType: 'blob'
+      })
+      const disposition = res.headers['content-disposition']
+      let filename = 'pictures_export.zip'
+      if (disposition) {
+        const matches = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (matches && matches[1]) {
+          filename = decodeURIComponent(matches[1].replace(/['"]/g, ''))
+        }
+      }
+      downloadBlob(res.data, filename)
+      showToast('导出成功')
+      showExportModal.value = false
+      selectedPictureIds.value = []
+      multiSelectMode.value = false
+    }
+  } catch (e) {
+    showToast('导出失败', 'error')
+  } finally {
+    exporting.value = false
+  }
+}
+
+const backups = ref([])
+const backupLoading = ref(false)
+const creatingBackup = ref(false)
+const showRestoreModal = ref(false)
+const restoreFileName = ref('')
+const restoreFile = ref(null)
+const restoreStrategy = ref('skip')
+const restoring = ref(false)
+const restoreResult = ref(null)
+
+const fetchBackups = async () => {
+  backupLoading.value = true
+  try {
+    const res = await api.get('/backup/list')
+    if (res.data.success) {
+      backups.value = res.data.data || []
+    }
+  } catch (e) {
+  } finally {
+    backupLoading.value = false
+  }
+}
+
+const createBackup = async () => {
+  if (creatingBackup.value) return
+  creatingBackup.value = true
+  try {
+    const res = await api.post('/backup/create')
+    if (res.data.success) {
+      showToast('备份任务已创建，正在处理中...')
+      await fetchBackups()
+      setTimeout(fetchBackups, 3000)
+    } else {
+      showToast(res.data.message || '创建备份失败', 'error')
+    }
+  } catch (e) {
+    showToast('创建备份失败', 'error')
+  } finally {
+    creatingBackup.value = false
+  }
+}
+
+const downloadBackup = async (id) => {
+  try {
+    const res = await api.get(`/backup/${id}/download`, {
+      responseType: 'blob'
+    })
+    const disposition = res.headers['content-disposition']
+    let filename = 'backup.zip'
+    if (disposition) {
+      const matches = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (matches && matches[1]) {
+        filename = decodeURIComponent(matches[1].replace(/['"]/g, ''))
+      }
+    }
+    downloadBlob(res.data, filename)
+    showToast('下载成功')
+  } catch (e) {
+    showToast('下载失败', 'error')
+  }
+}
+
+const confirmDeleteBackup = (id) => {
+  openConfirm({
+    title: '确认删除备份？',
+    message: '删除后无法恢复，请确认。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/backup/${id}`)
+        if (res.data.success) {
+          showToast('删除成功')
+          confirmModal.show = false
+          await fetchBackups()
+        } else {
+          showToast(res.data.message || '删除失败', 'error')
+        }
+      } catch (e) {
+        showToast('删除失败', 'error')
+      }
+    }
+  })
+}
+
+const onRestoreFileChange = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    restoreFile.value = file
+    restoreFileName.value = file.name
+    restoreResult.value = null
+  }
+}
+
+const doRestore = async () => {
+  if (!restoreFile.value || restoring.value) return
+  restoring.value = true
+  restoreResult.value = null
+  try {
+    const formData = new FormData()
+    formData.append('file', restoreFile.value)
+    formData.append('strategy', restoreStrategy.value)
+    
+    const res = await api.post('/backup/restore', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    if (res.data.success) {
+      restoreResult.value = {
+        success: true,
+        ...res.data.data
+      }
+      showToast('恢复成功')
+      await fetchAll()
+    } else {
+      restoreResult.value = {
+        success: false,
+        message: res.data.message || '恢复失败'
+      }
+      showToast(res.data.message || '恢复失败', 'error')
+    }
+  } catch (e) {
+    restoreResult.value = {
+      success: false,
+      message: '恢复失败'
+    }
+    showToast('恢复失败', 'error')
+  } finally {
+    restoring.value = false
+  }
+}
+
 const confirmBatchDelete = () => {
   openConfirm({
     title: `批量删除 ${selectedPictureIds.value.length} 张图片？`,
@@ -4033,6 +4502,7 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'tags') await fetchTags()
   if (newVal === 'watermark') { await fetchWatermarkConfig(); await fetchWatermarkTemplates() }
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
+  if (newVal === 'backup') { await fetchBackups() }
   if (newVal === 'shares') await fetchShares()
   if (newVal === 'discover') await fetchDiscoverPictures()
   if (newVal === 'favorites') await fetchMyFavorites()
