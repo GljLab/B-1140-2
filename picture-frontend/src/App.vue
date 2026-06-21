@@ -47,6 +47,9 @@
               <svg v-if="tab.id === 'stats'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
+              <svg v-if="tab.id === 'dedup'" class="w-4 h-4" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <span>{{ tab.name }}</span>
             </span>
           </button>
@@ -1465,6 +1468,411 @@
         </div>
       </div>
 
+      <!-- DEDUP -->
+      <div v-else-if="isLoggedIn && activeTab === 'dedup'">
+        <div v-if="dedupViewMode === 'scan'">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">图片去重</h2>
+              <p class="text-sm text-gray-500 mt-1">扫描并清理重复或相似的图片，释放存储空间</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center bg-gray-100 rounded-xl p-1">
+                <button @click="dedupSimilarityLevel = 'HIGH'"
+                  :class="['px-4 py-1.5 rounded-lg text-xs font-medium transition',
+                    dedupSimilarityLevel === 'HIGH' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-600 hover:text-gray-800']">
+                  高度相似
+                </button>
+                <button @click="dedupSimilarityLevel = 'MEDIUM'"
+                  :class="['px-4 py-1.5 rounded-lg text-xs font-medium transition',
+                    dedupSimilarityLevel === 'MEDIUM' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:text-gray-800']">
+                  中等相似
+                </button>
+                <button @click="dedupSimilarityLevel = 'LOW'"
+                  :class="['px-4 py-1.5 rounded-lg text-xs font-medium transition',
+                    dedupSimilarityLevel === 'LOW' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-800']">
+                  低度相似
+                </button>
+              </div>
+              <button @click="runDedupScan" :disabled="dedupLoading"
+                class="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition text-sm font-medium flex items-center space-x-1 disabled:opacity-50">
+                <svg v-if="dedupLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>{{ dedupLoading ? '扫描中...' : '开始扫描' }}</span>
+              </button>
+              <button @click="dedupViewMode = 'whitelist'; loadWhitelist()"
+                :class="['px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1',
+                  dedupViewMode === 'whitelist' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700']">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>查看白名单</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="dedupLoading" class="flex flex-col items-center justify-center py-32 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mb-6"></div>
+            <h3 class="text-lg font-semibold text-gray-800">正在扫描您的图片...</h3>
+            <p class="text-sm text-gray-500 mt-2">这可能需要一些时间，请耐心等待</p>
+          </div>
+
+          <div v-else-if="!dedupScanResult" class="text-center py-32 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl mx-auto flex items-center justify-center mb-6">
+              <svg class="w-12 h-12 text-blue-600" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">还没有扫描记录</h3>
+            <p class="text-gray-500 mb-6">选择相似度阈值，点击"开始扫描"查找重复图片</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
+              <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+                <div class="text-red-600 font-semibold text-sm mb-1">高度相似</div>
+                <div class="text-xs text-gray-500">95%以上相似度，几乎完全相同的图片</div>
+              </div>
+              <div class="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                <div class="text-orange-600 font-semibold text-sm mb-1">中等相似</div>
+                <div class="text-xs text-gray-500">85%-95%相似度，明显相似的图片</div>
+              </div>
+              <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <div class="text-blue-600 font-semibold text-sm mb-1">低度相似</div>
+                <div class="text-xs text-gray-500">70%-85%相似度，可能存在关联的图片</div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+              <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">扫描图片总数</div>
+                <div class="text-2xl font-bold text-gray-800">{{ dedupScanResult.totalScanned || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">完全重复组数</div>
+                <div class="text-2xl font-bold text-red-600">{{ dedupScanResult.duplicateGroupCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">相似图片组数</div>
+                <div class="text-2xl font-bold text-orange-600">{{ dedupScanResult.similarGroupCount || 0 }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">可释放空间</div>
+                <div class="text-2xl font-bold text-emerald-600">{{ formatSize(dedupScanResult.totalReclaimableSize) }}</div>
+              </div>
+              <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 col-span-2 sm:col-span-1">
+                <div class="text-xs text-gray-500 mb-1">可删除图片总数</div>
+                <div class="text-2xl font-bold text-purple-600">{{ getTotalDuplicateCount() }}</div>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2 mb-5">
+              <button @click="dedupResultTab = 'duplicate'"
+                :class="['px-5 py-2 rounded-xl text-sm font-medium transition',
+                  dedupResultTab === 'duplicate' ? 'bg-white text-gray-800 shadow-md border border-gray-200' : 'bg-gray-50 text-gray-500 hover:text-gray-700 border border-transparent']">
+                完全重复 ({{ dedupScanResult.duplicateGroups?.length || 0 }})
+              </button>
+              <button @click="dedupResultTab = 'similar'"
+                :class="['px-5 py-2 rounded-xl text-sm font-medium transition',
+                  dedupResultTab === 'similar' ? 'bg-white text-gray-800 shadow-md border border-gray-200' : 'bg-gray-50 text-gray-500 hover:text-gray-700 border border-transparent']">
+                视觉相似 ({{ dedupScanResult.similarGroups?.length || 0 }})
+              </button>
+            </div>
+
+            <div class="space-y-5">
+              <template v-for="group in (dedupResultTab === 'duplicate' ? dedupScanResult.duplicateGroups : dedupScanResult.similarGroups)" :key="groupId(group)">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div class="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input type="checkbox" :checked="dedupSelectedGroupIds.has(groupId(group))"
+                        @change="toggleDedupGroupSelection(groupId(group))"
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                      <span class="text-sm font-medium text-gray-700">选择该组</span>
+                    </label>
+                    <span :class="['px-2.5 py-0.5 rounded-full text-xs font-medium',
+                      group.level === 'IDENTICAL' ? 'bg-red-100 text-red-700' : getLevelColorClass(group.level)]">
+                      {{ formatSimilarityLevel(group.level) }}
+                    </span>
+                    <span class="text-xs text-gray-500">
+                      平均相似度: <span class="font-semibold text-gray-700">{{ group.averageSimilarity ? (group.averageSimilarity * 100).toFixed(1) : 100 }}%</span>
+                    </span>
+                    <span class="text-xs text-gray-500">
+                      图片数量: <span class="font-semibold text-gray-700">{{ group.pictures?.length || 0 }}</span>
+                    </span>
+                    <span class="text-xs text-gray-500">
+                      可释放: <span class="font-semibold text-emerald-600">{{ formatSize(group.reclaimableSize) }}</span>
+                    </span>
+                    <div class="flex-1"></div>
+                    <button @click="applyGroupRecommendation(group)"
+                      class="px-3 py-1 bg-blue-50 text-blue-600 text-xs rounded-lg hover:bg-blue-100 transition flex items-center space-x-1">
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>应用智能推荐</span>
+                    </button>
+                    <button @click="addGroupToWhitelist(group)"
+                      class="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition flex items-center space-x-1">
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>加入白名单</span>
+                    </button>
+                  </div>
+
+                  <div class="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div v-for="pic in group.pictures" :key="pic.id"
+                      @click="dedupPreviewGroup = group"
+                      :class="['relative rounded-xl overflow-hidden border-2 transition cursor-pointer group/piccard hover:shadow-lg',
+                        dedupSelectedGroupIds.has(groupId(group)) && isPictureKept(groupId(group), pic.id) ? 'border-blue-500' : 'border-transparent']">
+                      <div class="aspect-square bg-gray-100">
+                        <img v-if="pic.thumbnailUrl || pic.url" :src="pic.thumbnailUrl || pic.url" class="w-full h-full object-cover"
+                          @error="($event.target.style.display='none')" />
+                        <div v-else class="w-full h-full flex items-center justify-center">
+                          <svg class="w-12 h-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div class="absolute top-2 right-2" @click.stop>
+                        <label class="flex items-center justify-center w-6 h-6 rounded-full shadow-md cursor-pointer"
+                          :class="isPictureKept(groupId(group), pic.id) ? 'bg-blue-500' : 'bg-white/90'">
+                          <input type="checkbox" :checked="isPictureKept(groupId(group), pic.id)"
+                            @change="toggleKeepPicture(groupId(group), pic.id)"
+                            class="w-4 h-4 text-blue-600 rounded border-transparent focus:ring-0 bg-transparent" />
+                        </label>
+                      </div>
+
+                      <div class="absolute top-2 left-2">
+                        <span v-if="pic.recommendedToKeep" class="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-medium rounded-full shadow-sm">
+                          推荐保留
+                        </span>
+                        <span v-else-if="isPictureKept(groupId(group), pic.id)" class="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-medium rounded-full shadow-sm">
+                          选中保留
+                        </span>
+                        <span v-else class="px-2 py-0.5 bg-gray-500/80 text-white text-[10px] font-medium rounded-full shadow-sm">
+                          将被删除
+                        </span>
+                      </div>
+
+                      <div class="p-2.5 bg-white border-t border-gray-50">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-[11px] text-gray-500">{{ pic.width || '?' }}x{{ pic.height || '?' }}</span>
+                          <span class="text-[11px] font-medium text-gray-700">{{ formatSize(pic.fileSize) }}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-400 mb-1.5 truncate">{{ formatTime(pic.uploadTime || pic.createTime) }}</div>
+                        <div v-if="pic.albumName" class="text-[10px] text-blue-600 truncate mb-1.5">📁 {{ pic.albumName }}</div>
+                        <div class="flex items-center gap-1.5 mb-1">
+                          <span :class="['px-1.5 py-0.5 rounded text-[9px] font-medium',
+                            (pic.width * pic.height || 0) >= 3686400 ? 'bg-purple-100 text-purple-700' :
+                            (pic.width * pic.height || 0) >= 2073600 ? 'bg-blue-100 text-blue-700' :
+                            (pic.width * pic.height || 0) >= 921600 ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-600']">
+                            {{ (pic.width * pic.height || 0) >= 3686400 ? '超清' :
+                               (pic.width * pic.height || 0) >= 2073600 ? '高清' :
+                               (pic.width * pic.height || 0) >= 921600 ? '标清' : '普通' }}
+                          </span>
+                        </div>
+                        <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div class="h-full bg-gradient-to-r from-blue-400 to-purple-500 rounded-full transition-all"
+                            :style="{ width: getQualityBarWidth((pic.width || 0) * (pic.height || 0)) + '%' }"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <div v-if="(dedupResultTab === 'duplicate' ? dedupScanResult.duplicateGroups?.length : dedupScanResult.similarGroups?.length) === 0"
+                class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div class="text-5xl mb-4">🎉</div>
+                <h3 class="text-lg font-semibold text-gray-600">没有发现{{ dedupResultTab === 'duplicate' ? '完全重复' : '视觉相似' }}的图片</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else>
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">白名单管理</h2>
+              <p class="text-sm text-gray-500 mt-1">这些图片对将不会被标记为重复</p>
+            </div>
+            <button @click="dedupViewMode = 'scan'"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition flex items-center space-x-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>返回扫描</span>
+            </button>
+          </div>
+
+          <div v-if="dedupWhitelist.length === 0" class="text-center py-24 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div class="w-20 h-20 bg-gray-50 rounded-2xl mx-auto flex items-center justify-center mb-4">
+              <svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-500">白名单为空</h3>
+            <p class="text-sm text-gray-400 mt-1">扫描后确认某些图片不是重复，可以加入白名单</p>
+          </div>
+
+          <div v-else class="space-y-4">
+            <div v-for="item in dedupWhitelist" :key="item.id"
+              class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition">
+              <div class="flex items-center gap-4">
+                <div class="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                  <img v-if="item.picture1?.thumbnailUrl || item.picture1?.url" :src="item.picture1?.thumbnailUrl || item.picture1?.url" class="w-full h-full object-cover" />
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                  <svg class="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span class="text-[10px] text-gray-400 mt-1">非重复</span>
+                </div>
+                <div class="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                  <img v-if="item.picture2?.thumbnailUrl || item.picture2?.url" :src="item.picture2?.thumbnailUrl || item.picture2?.url" class="w-full h-full object-cover" />
+                </div>
+                <div class="flex-1 min-w-0 ml-4">
+                  <div class="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <div class="font-medium text-gray-700 truncate">{{ item.picture1?.name || item.picture1Id }}</div>
+                      <div class="text-gray-400 mt-0.5">{{ formatSize(item.picture1?.fileSize) }} · {{ formatTime(item.createTime) }}</div>
+                    </div>
+                    <div>
+                      <div class="font-medium text-gray-700 truncate">{{ item.picture2?.name || item.picture2Id }}</div>
+                      <div class="text-gray-400 mt-0.5">{{ formatSize(item.picture2?.fileSize) }}</div>
+                    </div>
+                  </div>
+                </div>
+                <button @click="removeFromWhitelist(item.id)"
+                  class="px-3 py-1.5 bg-red-50 text-red-600 text-xs rounded-lg hover:bg-red-100 transition flex-shrink-0">
+                  移除白名单
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="getSelectedGroupCount() > 0"
+          class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl shadow-2xl border border-gray-200 px-6 py-4 flex items-center gap-4 z-30">
+          <div class="text-sm">
+            <span class="text-gray-500">已选</span>
+            <span class="font-semibold text-blue-600 mx-1">{{ getSelectedGroupCount() }}</span>
+            <span class="text-gray-500">组 · 可释放</span>
+            <span class="font-semibold text-emerald-600 ml-1">{{ formatSize(getReclaimableSpace()) }}</span>
+          </div>
+          <div class="h-8 w-px bg-gray-200"></div>
+          <button @click="applyAllRecommendations"
+            class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition flex items-center space-x-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>应用智能推荐</span>
+          </button>
+          <button @click="processSelections"
+            class="px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg text-sm font-medium shadow-lg hover:shadow-xl transition flex items-center space-x-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>批量删除</span>
+          </button>
+          <button v-for="group in getSelectedGroups()" :key="'wl-'+groupId(group)" @click="addGroupToWhitelist(group)" style="display:none"></button>
+          <button @click="batchAddSelectedToWhitelist()"
+            class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center space-x-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <span>加入白名单</span>
+          </button>
+        </div>
+
+        <div v-if="dedupPreviewGroup"
+          class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          @click.self="dedupPreviewGroup = null">
+          <div class="bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-bold text-gray-800">对比预览</h3>
+                <div class="flex items-center gap-3 mt-1">
+                  <span :class="['px-2 py-0.5 rounded-full text-xs font-medium',
+                    dedupPreviewGroup.level === 'IDENTICAL' ? 'bg-red-100 text-red-700' : getLevelColorClass(dedupPreviewGroup.level)]">
+                    {{ formatSimilarityLevel(dedupPreviewGroup.level) }}
+                  </span>
+                  <span class="text-xs text-gray-500">
+                    平均相似度 <span class="font-semibold text-gray-700">{{ dedupPreviewGroup.averageSimilarity ? (dedupPreviewGroup.averageSimilarity * 100).toFixed(1) : 100 }}%</span>
+                  </span>
+                </div>
+              </div>
+              <button @click="dedupPreviewGroup = null"
+                class="p-2 hover:bg-gray-100 rounded-xl transition">
+                <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div class="p-5 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div v-for="pic in dedupPreviewGroup.pictures" :key="pic.id"
+                  :class="['rounded-2xl border-2 overflow-hidden transition',
+                    isPictureKept(groupId(dedupPreviewGroup), pic.id) ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200']">
+                  <div class="aspect-video bg-gray-100 relative">
+                    <img v-if="pic.url || pic.thumbnailUrl" :src="pic.url || pic.thumbnailUrl" class="w-full h-full object-contain" />
+                    <div class="absolute top-3 left-3">
+                      <span v-if="pic.recommendedToKeep" class="px-2.5 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full shadow-sm">
+                        推荐保留
+                      </span>
+                      <span v-else-if="isPictureKept(groupId(dedupPreviewGroup), pic.id)" class="px-2.5 py-1 bg-blue-500 text-white text-xs font-medium rounded-full shadow-sm">
+                        选中保留
+                      </span>
+                      <span v-else class="px-2.5 py-1 bg-gray-500/80 text-white text-xs font-medium rounded-full shadow-sm">
+                        将被删除
+                      </span>
+                    </div>
+                  </div>
+                  <div class="p-4 space-y-2">
+                    <label class="flex items-center justify-between cursor-pointer">
+                      <span class="text-sm font-medium text-gray-700">保留此图片</span>
+                      <input type="checkbox" :checked="isPictureKept(groupId(dedupPreviewGroup), pic.id)"
+                        @change="toggleKeepPicture(groupId(dedupPreviewGroup), pic.id)"
+                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                    </label>
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-gray-100">
+                      <div><span class="text-gray-400">分辨率：</span><span class="text-gray-700 font-medium">{{ pic.width || '?' }}x{{ pic.height || '?' }}</span></div>
+                      <div><span class="text-gray-400">大小：</span><span class="text-gray-700 font-medium">{{ formatSize(pic.fileSize) }}</span></div>
+                      <div class="col-span-2"><span class="text-gray-400">上传：</span><span class="text-gray-700">{{ formatTime(pic.uploadTime || pic.createTime) }}</span></div>
+                      <div v-if="pic.albumName" class="col-span-2"><span class="text-gray-400">专辑：</span><span class="text-blue-600 truncate">{{ pic.albumName }}</span></div>
+                      <div v-if="pic.name" class="col-span-2 truncate"><span class="text-gray-400">名称：</span><span class="text-gray-700">{{ pic.name }}</span></div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="text-gray-400">质量评分</span>
+                        <span :class="['font-medium',
+                          (pic.width * pic.height || 0) >= 3686400 ? 'text-purple-600' :
+                          (pic.width * pic.height || 0) >= 2073600 ? 'text-blue-600' :
+                          (pic.width * pic.height || 0) >= 921600 ? 'text-green-600' : 'text-gray-500']">
+                          {{ (pic.width * pic.height || 0) >= 3686400 ? '超清' :
+                             (pic.width * pic.height || 0) >= 2073600 ? '高清' :
+                             (pic.width * pic.height || 0) >= 921600 ? '标清' : '普通' }}
+                        </span>
+                      </div>
+                      <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 rounded-full"
+                          :style="{ width: getQualityBarWidth((pic.width || 0) * (pic.height || 0)) + '%' }"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- STATS -->
       <div v-else-if="isLoggedIn && activeTab === 'stats'">
         <h2 class="text-2xl font-bold text-gray-800 mb-6">数据统计</h2>
@@ -2747,6 +3155,7 @@ const tabs = [
   { id: 'watermark', name: '水印' },
   { id: 'backup', name: '备份与恢复' },
   { id: 'recycle', name: '回收站' },
+  { id: 'dedup', name: '图片去重' },
   { id: 'stats', name: '统计' },
   { id: 'shares', name: '我的分享' }
 ]
@@ -2768,6 +3177,17 @@ const currentShareToken = ref('')
 const activeTab = ref('pictures')
 const loading = ref(false)
 const globalSearch = ref('')
+
+// Dedup
+const dedupLoading = ref(false)
+const dedupScanResult = ref(null)
+const dedupSimilarityLevel = ref('MEDIUM')
+const dedupSelectedGroupIds = ref(new Set())
+const dedupKeepPictureIds = ref({})
+const dedupViewMode = ref('scan')
+const dedupWhitelist = ref([])
+const dedupPreviewGroup = ref(null)
+const dedupResultTab = ref('duplicate')
 
 // User / Auth
 const currentUser = ref(null)
@@ -3080,6 +3500,184 @@ const formatTime = (timeStr) => {
   if (!timeStr) return ''
   const d = new Date(timeStr)
   return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+// Dedup helpers
+const groupId = (group) => group.id || group.groupId || JSON.stringify(group.pictures?.map(p => p.id) || [])
+const formatSimilarityLevel = (level) => {
+  const map = { HIGH: '高度相似', MEDIUM: '中等相似', LOW: '低度相似', IDENTICAL: '完全重复' }
+  return map[level] || level || '未知'
+}
+const getLevelColorClass = (level) => {
+  const map = { HIGH: 'bg-red-100 text-red-700', MEDIUM: 'bg-orange-100 text-orange-700', LOW: 'bg-blue-100 text-blue-700', IDENTICAL: 'bg-red-100 text-red-700' }
+  return map[level] || 'bg-gray-100 text-gray-700'
+}
+const getQualityBarWidth = (pixels) => {
+  if (!pixels || pixels <= 0) return 5
+  const max = 3840 * 2160
+  const pct = Math.min(100, Math.max(5, (pixels / max) * 100))
+  return Math.round(pct)
+}
+const toggleDedupGroupSelection = (gid) => {
+  const s = new Set(dedupSelectedGroupIds.value)
+  if (s.has(gid)) s.delete(gid)
+  else s.add(gid)
+  dedupSelectedGroupIds.value = s
+}
+const isPictureKept = (gid, pid) => {
+  const arr = dedupKeepPictureIds.value[gid] || []
+  return arr.includes(pid)
+}
+const toggleKeepPicture = (gid, pid) => {
+  const current = [...(dedupKeepPictureIds.value[gid] || [])]
+  const idx = current.indexOf(pid)
+  if (idx >= 0) current.splice(idx, 1)
+  else current.push(pid)
+  dedupKeepPictureIds.value = { ...dedupKeepPictureIds.value, [gid]: current }
+}
+const applyGroupRecommendation = (group) => {
+  const gid = groupId(group)
+  const recommended = (group.pictures || []).filter(p => p.recommendedToKeep).map(p => p.id)
+  if (recommended.length === 0 && group.pictures && group.pictures.length > 0) {
+    recommended.push(group.pictures[0].id)
+  }
+  dedupKeepPictureIds.value = { ...dedupKeepPictureIds.value, [gid]: recommended }
+}
+const getSelectedGroups = () => {
+  if (!dedupScanResult.value) return []
+  const all = [...(dedupScanResult.value.duplicateGroups || []), ...(dedupScanResult.value.similarGroups || [])]
+  return all.filter(g => dedupSelectedGroupIds.value.has(groupId(g)))
+}
+const getSelectedGroupCount = () => dedupSelectedGroupIds.value.size
+const getReclaimableSpace = () => {
+  return getSelectedGroups().reduce((sum, g) => sum + (Number(g.reclaimableSize) || 0), 0)
+}
+const getTotalDuplicateCount = () => {
+  if (!dedupScanResult.value) return 0
+  const groups = [...(dedupScanResult.value.duplicateGroups || []), ...(dedupScanResult.value.similarGroups || [])]
+  return groups.reduce((sum, g) => sum + ((g.pictures?.length || 0) - 1), 0)
+}
+const runDedupScan = async () => {
+  dedupLoading.value = true
+  try {
+    const res = await api.get('/dedup/scan', { params: { similarityLevel: dedupSimilarityLevel.value } })
+    if (res.data.success) {
+      dedupScanResult.value = res.data.data
+      const keep = {}
+      const groups = [...(res.data.data.duplicateGroups || []), ...(res.data.data.similarGroups || [])]
+      groups.forEach(g => {
+        const gid = groupId(g)
+        const recommended = (g.pictures || []).filter(p => p.recommendedToKeep).map(p => p.id)
+        keep[gid] = recommended.length > 0 ? recommended : [(g.pictures || [])[0]?.id].filter(Boolean)
+      })
+      dedupKeepPictureIds.value = keep
+      dedupSelectedGroupIds.value = new Set(groups.map(groupId))
+      showToast('扫描完成！发现 ' + groups.length + ' 组重复/相似图片')
+    } else {
+      showToast(res.data.message || '扫描失败', 'error')
+    }
+  } catch (e) {
+    showToast('扫描出错：' + (e.message || '请重试'), 'error')
+  } finally {
+    dedupLoading.value = false
+  }
+}
+const applyAllRecommendations = async () => {
+  const groupIds = [...dedupSelectedGroupIds.value]
+  if (groupIds.length === 0) { showToast('请先选择分组', 'error'); return }
+  try {
+    const res = await api.post('/dedup/apply-recommendations', { groupIds, similarityLevel: dedupSimilarityLevel.value })
+    if (res.data.success) {
+      const groups = getSelectedGroups()
+      groups.forEach(g => applyGroupRecommendation(g))
+      showToast('已应用智能推荐')
+    } else {
+      showToast(res.data.message || '应用推荐失败', 'error')
+    }
+  } catch (e) {
+    const groups = getSelectedGroups()
+    groups.forEach(g => applyGroupRecommendation(g))
+    showToast('已本地应用推荐结果')
+  }
+}
+const processSelections = async () => {
+  const groupIds = [...dedupSelectedGroupIds.value]
+  if (groupIds.length === 0) { showToast('请先选择分组', 'error'); return }
+  openConfirm({
+    title: '确认批量删除',
+    message: '将删除选中组中未标记为"保留"的图片，此操作不可恢复，确定继续吗？',
+    onConfirm: async () => {
+      try {
+        const res = await api.post('/dedup/process-selections', {
+          groupIds,
+          keepPictureIds: dedupKeepPictureIds.value,
+          similarityLevel: dedupSimilarityLevel.value
+        })
+        if (res.data.success) {
+          showToast('删除成功！已释放 ' + formatSize(getReclaimableSpace()))
+          dedupScanResult.value = null
+          dedupSelectedGroupIds.value = new Set()
+          dedupKeepPictureIds.value = {}
+          await fetchAll()
+        } else {
+          showToast(res.data.message || '删除失败', 'error')
+        }
+      } catch (e) {
+        showToast('删除出错：' + (e.message || '请重试'), 'error')
+      }
+    }
+  })
+}
+const addGroupToWhitelist = async (group) => {
+  const pics = group.pictures || []
+  if (pics.length < 2) { showToast('至少需要2张图片', 'error'); return }
+  let success = 0, fail = 0
+  for (let i = 0; i < pics.length; i++) {
+    for (let j = i + 1; j < pics.length; j++) {
+      try {
+        const res = await api.post('/dedup/whitelist/add', { pictureIds: [pics[i].id, pics[j].id] })
+        if (res.data.success) success++; else fail++
+      } catch { fail++ }
+    }
+  }
+  if (fail === 0) showToast('已加入白名单')
+  else showToast(`部分加入成功：${success}对成功，${fail}对失败`, 'error')
+}
+const batchAddSelectedToWhitelist = async () => {
+  const groups = getSelectedGroups()
+  if (groups.length === 0) { showToast('请先选择分组', 'error'); return }
+  let total = 0
+  for (const g of groups) {
+    const pics = g.pictures || []
+    for (let i = 0; i < pics.length; i++) {
+      for (let j = i + 1; j < pics.length; j++) {
+        try { await api.post('/dedup/whitelist/add', { pictureIds: [pics[i].id, pics[j].id]); total++ } catch {}
+      }
+    }
+  }
+  showToast(`已将 ${total} 对图片加入白名单`)
+}
+const loadWhitelist = async () => {
+  try {
+    const res = await api.get('/dedup/whitelist')
+    if (res.data.success) dedupWhitelist.value = res.data.data || []
+    else showToast(res.data.message || '加载白名单失败', 'error')
+  } catch (e) {
+    showToast('加载白名单出错', 'error')
+  }
+}
+const removeFromWhitelist = async (id) => {
+  try {
+    const res = await api.delete('/dedup/whitelist/' + id)
+    if (res.data.success) {
+      dedupWhitelist.value = dedupWhitelist.value.filter(x => x.id !== id)
+      showToast('已从白名单移除')
+    } else {
+      showToast(res.data.message || '移除失败', 'error')
+    }
+  } catch (e) {
+    showToast('移除出错', 'error')
+  }
 }
 
 const handleUploadClick = () => {

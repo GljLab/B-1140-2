@@ -12,6 +12,7 @@ import com.example.picture.repository.AlbumRepository;
 import com.example.picture.repository.PictureRepository;
 import com.example.picture.repository.TagRepository;
 import com.example.picture.repository.UserRepository;
+import com.example.picture.util.ImageHashUtil;
 import com.example.picture.util.WatermarkUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.PostConstruct;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -128,6 +131,18 @@ public class PictureService {
         }
         picture.setHasWatermark(hasWatermark);
         picture.setSize(new File(uploadPath + finalFileName).length());
+
+        try {
+            File finalImageFile = new File(uploadPath + finalFileName);
+            picture.setMd5Hash(ImageHashUtil.computeMD5(finalImageFile));
+            BufferedImage bimg = ImageIO.read(finalImageFile);
+            if (bimg != null) {
+                picture.setPerceptualHash(ImageHashUtil.computePerceptualHash(bimg));
+                picture.setWidth(bimg.getWidth());
+                picture.setHeight(bimg.getHeight());
+            }
+        } catch (Exception ignored) {
+        }
 
         Set<Album> albums = new HashSet<>();
         if (albumIds != null && !albumIds.isEmpty()) {

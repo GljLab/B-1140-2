@@ -22,6 +22,10 @@ public class Picture {
     private String url;
     private String originalUrl;
     private Long size;
+    private Integer width;
+    private Integer height;
+    private String md5Hash;
+    private String perceptualHash;
     private Boolean hasWatermark = false;
     private Date createTime;
     private Date updateTime;
