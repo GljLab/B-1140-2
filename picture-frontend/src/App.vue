@@ -26,6 +26,9 @@
               <svg v-if="tab.id === 'albums'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
+              <svg v-if="tab.id === 'stories'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
               <svg v-if="tab.id === 'tags'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
@@ -730,6 +733,17 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- STORIES -->
+      <div v-else-if="isLoggedIn && activeTab === 'stories'">
+        <StoryList
+          ref="storyListRef"
+          @create="handleCreateStory"
+          @edit="handleEditStory"
+          @view="handleViewStory"
+          @delete="onStoryDeleted"
+        />
       </div>
 
       <!-- WATERMARK CONFIG -->
@@ -2320,6 +2334,25 @@
       @saved="onEditorSaved"
       @close="onEditorClosed"
     />
+
+    <!-- Story Editor -->
+    <StoryEditor
+      v-if="showStoryEditor"
+      :storyId="editingStoryId"
+      @close="onStoryEditorClose"
+      @saved="onStorySaved"
+      @published="onStoryPublished"
+    />
+
+    <!-- Story Detail -->
+    <div v-if="showStoryDetail" class="fixed inset-0 z-50 bg-white overflow-y-auto">
+      <StoryDetail
+        ref="storyDetailRef"
+        :storyId="viewingStoryId"
+        @close="showStoryDetail = false"
+        @edit="handleEditStoryFromDetail"
+      />
+    </div>
   </div>
 </template>
 
@@ -2328,6 +2361,9 @@ import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 import ImageEditor from './components/ImageEditor.vue'
 import TimelineView from './components/TimelineView.vue'
+import StoryList from './components/StoryList.vue'
+import StoryEditor from './components/StoryEditor.vue'
+import StoryDetail from './components/StoryDetail.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -2337,6 +2373,7 @@ const tabs = [
   { id: 'pictures', name: '图片墙' },
   { id: 'timeline', name: '时光轴' },
   { id: 'albums', name: '专辑' },
+  { id: 'stories', name: '故事' },
   { id: 'tags', name: '主题词' },
   { id: 'watermark', name: '水印' },
   { id: 'recycle', name: '回收站' },
@@ -2514,6 +2551,14 @@ const sharePageLoading = ref(false)
 const sharePasswordInput = ref('')
 const sharePasswordError = ref('')
 const sharePageError = ref('')
+
+// Stories
+const showStoryEditor = ref(false)
+const editingStoryId = ref(null)
+const viewingStoryId = ref(null)
+const showStoryDetail = ref(false)
+const storyListRef = ref(null)
+const storyDetailRef = ref(null)
 
 // Filter / select
 const filterAlbumId = ref(null)
@@ -3920,6 +3965,54 @@ const doBatchWatermark = async () => {
   selectedPictureIds.value = []
   multiSelectMode.value = false
   await fetchAll()
+}
+
+const handleCreateStory = () => {
+  editingStoryId.value = null
+  showStoryEditor.value = true
+}
+
+const handleEditStory = (story) => {
+  editingStoryId.value = story.id
+  showStoryEditor.value = true
+}
+
+const handleViewStory = (story) => {
+  viewingStoryId.value = story.id
+  showStoryDetail.value = true
+}
+
+const handleEditStoryFromDetail = (story) => {
+  showStoryDetail.value = false
+  editingStoryId.value = story.id
+  showStoryEditor.value = true
+}
+
+const onStoryEditorClose = () => {
+  showStoryEditor.value = false
+  editingStoryId.value = null
+  if (storyListRef.value) {
+    storyListRef.value.refresh()
+  }
+}
+
+const onStorySaved = (story) => {
+  if (!editingStoryId.value) {
+    editingStoryId.value = story.id
+  }
+}
+
+const onStoryPublished = (story) => {
+  showStoryEditor.value = false
+  editingStoryId.value = null
+  if (storyListRef.value) {
+    storyListRef.value.refresh()
+  }
+  showToast('发布成功！', 'success')
+}
+
+const onStoryDeleted = () => {
+  showToast('删除成功', 'success')
 }
 
 const fetchAll = async () => {

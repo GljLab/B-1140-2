@@ -24,9 +24,6 @@ public class LoginInterceptor implements HandlerInterceptor {
         }
 
         String uri = request.getRequestURI();
-        if (isPublicPath(uri)) {
-            return true;
-        }
 
         HttpSession session = request.getSession(false);
         if (session != null) {
@@ -36,11 +33,18 @@ public class LoginInterceptor implements HandlerInterceptor {
                 try {
                     UserDTO user = userService.getById(userId);
                     UserContext.setCurrentUser(user);
-                    return true;
                 } catch (Exception e) {
                     session.invalidate();
                 }
             }
+        }
+
+        if (isPublicPath(uri)) {
+            return true;
+        }
+
+        if (UserContext.isLoggedIn()) {
+            return true;
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -58,6 +62,10 @@ public class LoginInterceptor implements HandlerInterceptor {
         return uri.startsWith("/api/auth/login")
                 || uri.startsWith("/api/auth/register")
                 || uri.startsWith("/api/discover")
+                || uri.startsWith("/api/stories/public")
+                || uri.startsWith("/api/stories/")
+                || uri.startsWith("/api/story-interactions/stories/")
+                || uri.startsWith("/api/share/")
                 || uri.startsWith("/images/")
                 || uri.endsWith(".css")
                 || uri.endsWith(".js")
