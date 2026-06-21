@@ -20,6 +20,9 @@
               <svg v-if="tab.id === 'pictures'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
+              <svg v-if="tab.id === 'timeline'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <svg v-if="tab.id === 'albums'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
@@ -438,6 +441,21 @@
           </button>
           <button @click="selectedPictureIds = []" class="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">取消</button>
         </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div v-else-if="isLoggedIn && activeTab === 'timeline'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">时光轴</h2>
+            <p class="text-sm text-gray-500 mt-1">按时间线回顾你的精彩瞬间</p>
+          </div>
+        </div>
+        <TimelineView
+          :pictures="pictures"
+          :loading="loading"
+          @view-picture="viewPicture"
+        />
       </div>
 
       <!-- DISCOVER -->
@@ -2309,6 +2327,7 @@
 import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 import ImageEditor from './components/ImageEditor.vue'
+import TimelineView from './components/TimelineView.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -2316,6 +2335,7 @@ const tabs = [
   { id: 'discover', name: '发现' },
   { id: 'favorites', name: '我的收藏' },
   { id: 'pictures', name: '图片墙' },
+  { id: 'timeline', name: '时光轴' },
   { id: 'albums', name: '专辑' },
   { id: 'tags', name: '主题词' },
   { id: 'watermark', name: '水印' },
