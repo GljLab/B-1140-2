@@ -339,6 +339,17 @@
                 <input type="checkbox" v-model="multiSelectMode" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
                 <span>多选模式</span>
               </label>
+              <button v-if="multiSelectMode" @click="openCompareMode"
+                :disabled="selectedPictureIds.length < 2 || selectedPictureIds.length > 4"
+                :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center space-x-1',
+                  selectedPictureIds.length >= 2 && selectedPictureIds.length <= 4
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed']">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                <span>对比模式</span>
+              </button>
               <span v-if="multiSelectMode && selectedPictureIds.length > 0" class="text-sm text-blue-600 font-medium">
                 已选 {{ selectedPictureIds.length }} 张
               </span>
@@ -409,6 +420,15 @@
         <div v-if="multiSelectMode && selectedPictureIds.length > 0"
           class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 bg-white rounded-2xl shadow-2xl border border-gray-100 px-4 py-3 flex items-center space-x-3">
           <span class="text-sm font-medium text-gray-700 border-r border-gray-200 pr-3">已选 {{ selectedPictureIds.length }} 张</span>
+          <button v-if="selectedPictureIds.length >= 2 && selectedPictureIds.length <= 4" @click="openCompareMode"
+            class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              <span>开始对比</span>
+            </span>
+          </button>
           <button @click="showBatchTagModal = true"
             class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
             <span class="flex items-center space-x-1">
@@ -2611,6 +2631,15 @@
         @edit="handleEditStoryFromDetail"
       />
     </div>
+
+    <!-- Image Compare -->
+    <ImageCompare
+      v-if="showImageCompare"
+      :pictures="comparePictures"
+      :existingComparison="existingComparison"
+      @close="onCompareClosed"
+      @saved="onCompareSaved"
+    />
   </div>
 </template>
 
@@ -2622,6 +2651,7 @@ import TimelineView from './components/TimelineView.vue'
 import StoryList from './components/StoryList.vue'
 import StoryEditor from './components/StoryEditor.vue'
 import StoryDetail from './components/StoryDetail.vue'
+import ImageCompare from './components/ImageCompare.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -2818,6 +2848,55 @@ const viewingStoryId = ref(null)
 const showStoryDetail = ref(false)
 const storyListRef = ref(null)
 const storyDetailRef = ref(null)
+
+// Image Compare
+const showImageCompare = ref(false)
+const comparePictures = ref([])
+const existingComparison = ref(null)
+
+const openCompareMode = () => {
+  if (selectedPictureIds.value.length < 2) {
+    showToast('请选择至少2张图片进行对比', 'warning')
+    return
+  }
+  if (selectedPictureIds.value.length > 4) {
+    showToast('最多只能选择4张图片进行对比', 'warning')
+    return
+  }
+  const pics = pictures.value.filter(p => selectedPictureIds.value.includes(p.id))
+  if (pics.length < 2) {
+    showToast('选择的图片中有效图片不足2张', 'warning')
+    return
+  }
+  comparePictures.value = pics
+  existingComparison.value = null
+  showImageCompare.value = true
+}
+
+const openExistingComparison = async (comparisonId) => {
+  try {
+    const res = await api.get(`/comparisons/${comparisonId}`)
+    if (res.data.success && res.data.data?.pictures?.length >= 2) {
+      comparePictures.value = res.data.data.pictures
+      existingComparison.value = res.data.data
+      showImageCompare.value = true
+    } else {
+      showToast(res.data.message || '无法加载对比记录', 'error')
+    }
+  } catch (e) {
+    showToast('加载对比记录失败', 'error')
+  }
+}
+
+const onCompareClosed = () => {
+  showImageCompare.value = false
+  comparePictures.value = []
+  existingComparison.value = null
+}
+
+const onCompareSaved = (result) => {
+  showToast('对比已保存')
+}
 
 // Filter / select
 const filterAlbumId = ref(null)
@@ -3329,6 +3408,23 @@ const parseHashRoute = () => {
       isSharePage.value = true
       currentShareToken.value = token
       loadSharePage(token)
+      return true
+    }
+  } else if (hash.startsWith('#compare/')) {
+    const comparisonId = hash.replace('#compare/', '')
+    if (comparisonId) {
+      if (!isLoggedIn.value) {
+        checkAuth().then(async (loggedIn) => {
+          if (loggedIn) {
+            await fetchAll()
+            openExistingComparison(comparisonId)
+          } else {
+            openLoginModal()
+          }
+        })
+      } else {
+        openExistingComparison(comparisonId)
+      }
       return true
     }
   } else {

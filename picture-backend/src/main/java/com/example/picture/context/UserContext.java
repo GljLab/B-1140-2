@@ -26,4 +26,12 @@ public class UserContext {
     public static boolean isLoggedIn() {
         return currentUser.get() != null;
     }
+
+    public static Long getCurrentUserIdSafe() {
+        try {
+            return getCurrentUserId();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

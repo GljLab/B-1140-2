@@ -44,6 +44,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/shares/*",
                         "/api/shares/*/access",
                         "/api/discover",
+                        "/api/comparisons/*",
+                        "/api/comparisons/*/annotations",
+                        "/api/comparisons/public",
                         "/images/**"
                 );
     }
