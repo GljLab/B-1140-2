@@ -23,12 +23,47 @@ public class PictureController {
     public ResponseEntity<ApiResponse<PictureDTO>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "albumIds", required = false) Long[] albumIds,
-            @RequestParam(value = "tags", required = false) String[] tags) throws IOException {
+            @RequestParam(value = "tags", required = false) String[] tags,
+            @RequestParam(value = "addWatermark", required = false, defaultValue = "false") Boolean addWatermark,
+            @RequestParam(value = "templateId", required = false) Long templateId) throws IOException {
         try {
             Long userId = UserContext.getCurrentUserId();
             List<Long> albumIdList = albumIds != null ? Arrays.asList(albumIds) : null;
             List<String> tagList = tags != null ? Arrays.asList(tags) : null;
-            return ResponseEntity.ok(ApiResponse.success(pictureService.upload(file, albumIdList, tagList, userId)));
+            return ResponseEntity.ok(ApiResponse.success(pictureService.upload(file, albumIdList, tagList, userId, addWatermark, templateId)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pictures/{id}/add-watermark")
+    public ResponseEntity<ApiResponse<PictureDTO>> addWatermarkToPicture(
+            @PathVariable Long id,
+            @RequestParam(value = "templateId", required = false) Long templateId) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.addWatermarkToPicture(id, userId, templateId)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pictures/{id}/remove-watermark")
+    public ResponseEntity<ApiResponse<PictureDTO>> removeWatermarkFromPicture(@PathVariable Long id) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            return ResponseEntity.ok(ApiResponse.success(pictureService.removeWatermarkFromPicture(id, userId)));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pictures/batch-watermark")
+    public ResponseEntity<ApiResponse<Integer>> batchAddWatermark(@RequestBody BatchWatermarkRequest request) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            int count = pictureService.batchAddWatermark(request, userId);
+            return ResponseEntity.ok(ApiResponse.success("成功为 " + count + " 张图片添加水印", count));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }

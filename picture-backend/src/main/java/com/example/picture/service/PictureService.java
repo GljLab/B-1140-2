@@ -6,10 +6,13 @@ import com.example.picture.entity.Album;
 import com.example.picture.entity.Picture;
 import com.example.picture.entity.Tag;
 import com.example.picture.entity.User;
+import com.example.picture.entity.WatermarkConfig;
+import com.example.picture.entity.WatermarkTemplate;
 import com.example.picture.repository.AlbumRepository;
 import com.example.picture.repository.PictureRepository;
 import com.example.picture.repository.TagRepository;
 import com.example.picture.repository.UserRepository;
+import com.example.picture.util.WatermarkUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -52,6 +55,9 @@ public class PictureService {
     @Autowired
     private com.example.picture.repository.AlbumCollaboratorRepository albumCollaboratorRepository;
 
+    @Autowired
+    private WatermarkService watermarkService;
+
     @Value("${upload.path:/app/images/}")
     private String uploadPath;
 
@@ -68,6 +74,11 @@ public class PictureService {
 
     @Transactional
     public PictureDTO upload(MultipartFile file, List<Long> albumIds, List<String> tagNames, Long userId) throws IOException {
+        return upload(file, albumIds, tagNames, userId, false, null);
+    }
+
+    @Transactional
+    public PictureDTO upload(MultipartFile file, List<Long> albumIds, List<String> tagNames, Long userId, Boolean addWatermark, Long templateId) throws IOException {
         albumService.ensureDefaultAlbum(userId);
 
         String originalName = file.getOriginalFilename();
@@ -75,15 +86,48 @@ public class PictureService {
         if (originalName != null && originalName.contains(".")) {
             suffix = originalName.substring(originalName.lastIndexOf("."));
         }
-        String fileName = UUID.randomUUID().toString() + suffix;
-        Path path = Paths.get(uploadPath + fileName);
-        Files.write(path, file.getBytes());
+        String originalFileName = UUID.randomUUID().toString() + suffix;
+        Path originalPath = Paths.get(uploadPath + originalFileName);
+        Files.write(originalPath, file.getBytes());
+
+        String finalFileName = originalFileName;
+        String finalUrl = "/images/" + originalFileName;
+        boolean hasWatermark = false;
+
+        if (Boolean.TRUE.equals(addWatermark)) {
+            WatermarkConfig config = null;
+            if (templateId != null) {
+                WatermarkTemplate template = watermarkService.getTemplateEntity(templateId, userId);
+                if (template != null) {
+                    config = watermarkService.templateToConfig(template, userId);
+                }
+            }
+            if (config == null) {
+                config = watermarkService.getConfigEntity(userId);
+            }
+            if (config != null) {
+                String watermarkedFileName = UUID.randomUUID().toString() + suffix;
+                File watermarkedFile = new File(uploadPath + watermarkedFileName);
+                try {
+                    WatermarkUtil.addWatermark(originalPath.toFile(), watermarkedFile, config, uploadPath);
+                    finalFileName = watermarkedFileName;
+                    finalUrl = "/images/" + watermarkedFileName;
+                    hasWatermark = true;
+                } catch (Exception e) {
+                    watermarkedFile.delete();
+                }
+            }
+        }
 
         Picture picture = new Picture();
         picture.setUserId(userId);
         picture.setName(originalName);
-        picture.setUrl("/images/" + fileName);
-        picture.setSize(file.getSize());
+        picture.setUrl(finalUrl);
+        if (hasWatermark) {
+            picture.setOriginalUrl("/images/" + originalFileName);
+        }
+        picture.setHasWatermark(hasWatermark);
+        picture.setSize(new File(uploadPath + finalFileName).length());
 
         Set<Album> albums = new HashSet<>();
         if (albumIds != null && !albumIds.isEmpty()) {
@@ -383,6 +427,102 @@ public class PictureService {
         }
     }
 
+    @Transactional
+    public PictureDTO addWatermarkToPicture(Long id, Long userId, Long templateId) throws IOException {
+        Picture picture = pictureRepository.findById(id).orElse(null);
+        if (picture == null || !picture.getUserId().equals(userId)) {
+            throw new RuntimeException("图片不存在");
+        }
+        if (Boolean.TRUE.equals(picture.getDeleted())) {
+            throw new RuntimeException("图片不存在");
+        }
+
+        WatermarkConfig config = null;
+        if (templateId != null) {
+            WatermarkTemplate template = watermarkService.getTemplateEntity(templateId, userId);
+            if (template != null) {
+                config = watermarkService.templateToConfig(template, userId);
+            }
+        }
+        if (config == null) {
+            config = watermarkService.getConfigEntity(userId);
+        }
+        if (config == null) {
+            throw new RuntimeException("请先设置水印配置或选择水印模板");
+        }
+
+        String sourceUrl = picture.getOriginalUrl() != null ? picture.getOriginalUrl() : picture.getUrl();
+        String sourceFileName = sourceUrl.replace("/images/", "");
+        File sourceFile = new File(uploadPath + sourceFileName);
+        if (!sourceFile.exists()) {
+            throw new RuntimeException("原图文件不存在");
+        }
+
+        String originalName = picture.getName();
+        String suffix = "";
+        if (originalName != null && originalName.contains(".")) {
+            suffix = originalName.substring(originalName.lastIndexOf("."));
+        }
+        String watermarkedFileName = UUID.randomUUID().toString() + suffix;
+        File watermarkedFile = new File(uploadPath + watermarkedFileName);
+
+        WatermarkUtil.addWatermark(sourceFile, watermarkedFile, config, uploadPath);
+
+        if (picture.getOriginalUrl() == null) {
+            picture.setOriginalUrl(picture.getUrl());
+        }
+        picture.setUrl("/images/" + watermarkedFileName);
+        picture.setHasWatermark(true);
+        picture.setSize(watermarkedFile.length());
+
+        Picture saved = pictureRepository.save(picture);
+        return toDTO(saved, userId);
+    }
+
+    @Transactional
+    public PictureDTO removeWatermarkFromPicture(Long id, Long userId) {
+        Picture picture = pictureRepository.findById(id).orElse(null);
+        if (picture == null || !picture.getUserId().equals(userId)) {
+            throw new RuntimeException("图片不存在");
+        }
+        if (Boolean.TRUE.equals(picture.getDeleted())) {
+            throw new RuntimeException("图片不存在");
+        }
+        if (!Boolean.TRUE.equals(picture.getHasWatermark()) || picture.getOriginalUrl() == null) {
+            throw new RuntimeException("该图片没有水印或原图已被覆盖，无法恢复");
+        }
+
+        String originalFileName = picture.getOriginalUrl().replace("/images/", "");
+        File originalFile = new File(uploadPath + originalFileName);
+        if (!originalFile.exists()) {
+            throw new RuntimeException("原图文件已不存在，无法恢复");
+        }
+
+        picture.setUrl(picture.getOriginalUrl());
+        picture.setOriginalUrl(null);
+        picture.setHasWatermark(false);
+        picture.setSize(originalFile.length());
+
+        Picture saved = pictureRepository.save(picture);
+        return toDTO(saved, userId);
+    }
+
+    @Transactional
+    public int batchAddWatermark(BatchWatermarkRequest request, Long userId) {
+        if (request.getPictureIds() == null || request.getPictureIds().isEmpty()) {
+            return 0;
+        }
+        int successCount = 0;
+        for (Long pid : request.getPictureIds()) {
+            try {
+                addWatermarkToPicture(pid, userId, request.getTemplateId());
+                successCount++;
+            } catch (Exception e) {
+            }
+        }
+        return successCount;
+    }
+
     public PictureDTO toDTO(Picture picture) {
         return toDTO(picture, null);
     }
@@ -392,6 +532,8 @@ public class PictureService {
         dto.setId(picture.getId());
         dto.setName(picture.getName());
         dto.setUrl(picture.getUrl());
+        dto.setOriginalUrl(picture.getOriginalUrl());
+        dto.setHasWatermark(Boolean.TRUE.equals(picture.getHasWatermark()));
         dto.setSize(picture.getSize());
         dto.setCreateTime(picture.getCreateTime());
         dto.setUpdateTime(picture.getUpdateTime());

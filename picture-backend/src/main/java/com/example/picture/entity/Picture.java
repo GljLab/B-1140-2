@@ -20,7 +20,9 @@ public class Picture {
 
     private String name;
     private String url;
+    private String originalUrl;
     private Long size;
+    private Boolean hasWatermark = false;
     private Date createTime;
     private Date updateTime;
     private Boolean deleted = false;

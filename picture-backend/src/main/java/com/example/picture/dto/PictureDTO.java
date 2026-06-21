@@ -9,6 +9,8 @@ public class PictureDTO {
     private Long id;
     private String name;
     private String url;
+    private String originalUrl;
+    private Boolean hasWatermark;
     private Long size;
     private Date createTime;
     private Date updateTime;
