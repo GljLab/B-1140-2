@@ -29,6 +29,9 @@
               <svg v-if="tab.id === 'recycle'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
+              <svg v-if="tab.id === 'watermark'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
               <svg v-if="tab.id === 'stats'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -354,6 +357,14 @@
             </div>
             <div class="aspect-square bg-gray-100 relative overflow-hidden cursor-pointer" @click="viewPicture(pic)">
               <img :src="pic.url" class="object-cover w-full h-full transform group-hover:scale-105 transition duration-500" loading="lazy" />
+              <div v-if="pic.hasWatermark" class="absolute top-2 left-2 z-[5]">
+                <span class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[10px] text-white font-medium">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  </svg>
+                  <span>水印</span>
+                </span>
+              </div>
               <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition duration-300"></div>
               <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-300 flex space-x-1">
                 <a :href="pic.url" download @click.stop target="_blank"
@@ -396,6 +407,15 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
               <span>批量加主题词</span>
+            </span>
+          </button>
+          <button @click="showBatchWatermarkModal = true"
+            class="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              <span>批量加水印</span>
             </span>
           </button>
           <button @click="showBatchAlbumModal = true"
@@ -688,6 +708,280 @@
                 <p v-if="currentAlbumDetail.isCollaboration && pic.userId !== currentUser?.id" class="text-xs text-gray-400 mt-0.5">
                   上传者：{{ pic.authorNickname || '未知' }}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WATERMARK CONFIG -->
+      <div v-else-if="isLoggedIn && activeTab === 'watermark'">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">水印配置</h2>
+            <p class="text-sm text-gray-500 mt-1">配置水印参数，保护您的图片版权</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center space-x-2">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>基本设置</span>
+                </h3>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <span class="text-sm text-gray-600">{{ watermarkConfig.enabled ? '已开启' : '已关闭' }}</span>
+                  <div class="relative" @click="watermarkConfig.enabled = !watermarkConfig.enabled">
+                    <div :class="['w-11 h-6 rounded-full transition-colors', watermarkConfig.enabled ? 'bg-blue-500' : 'bg-gray-300']"></div>
+                    <div :class="['absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', watermarkConfig.enabled ? 'translate-x-5' : '']"></div>
+                  </div>
+                </label>
+              </div>
+
+              <div class="space-y-5" :class="watermarkConfig.enabled ? '' : 'opacity-50 pointer-events-none'">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">水印类型</label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button @click="watermarkConfig.type = 'text'"
+                      :class="['p-3 rounded-xl border-2 text-center transition',
+                        watermarkConfig.type === 'text' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                      <svg class="w-6 h-6 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span class="text-sm font-medium">文字水印</span>
+                    </button>
+                    <button @click="watermarkConfig.type = 'image'"
+                      :class="['p-3 rounded-xl border-2 text-center transition',
+                        watermarkConfig.type === 'image' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300']">
+                      <svg class="w-6 h-6 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-sm font-medium">图片水印</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="watermarkConfig.type === 'text'" class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">水印内容</label>
+                    <input v-model="watermarkConfig.textContent" type="text" placeholder="输入水印文字"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <p class="text-xs text-gray-400 mt-1">支持 {username} 占位符，自动替换为您的昵称</p>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">字体大小</label>
+                      <input v-model.number="watermarkConfig.fontSize" type="number" min="8" max="120"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">字体颜色</label>
+                      <div class="flex items-center space-x-2">
+                        <input type="color" v-model="watermarkConfig.fontColor"
+                          class="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
+                        <input v-model="watermarkConfig.fontColor" type="text"
+                          class="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="watermarkConfig.type === 'image'" class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">水印图片</label>
+                    <div @click="$refs.watermarkImageInput.click()"
+                      class="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-300 transition">
+                      <img v-if="watermarkConfig.imageUrl" :src="watermarkConfig.imageUrl" class="max-h-24 mx-auto" />
+                      <div v-else>
+                        <svg class="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p class="text-sm text-gray-500">点击上传水印图片</p>
+                      </div>
+                      <input ref="watermarkImageInput" type="file" class="hidden" accept="image/*" @change="uploadWatermarkImage" />
+                    </div>
+                  </div>
+                  <div v-if="watermarkConfig.imageUrl" class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">图片宽度 (px)</label>
+                      <input v-model.number="watermarkConfig.imageWidth" type="number" min="10"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">图片高度 (px)</label>
+                      <input v-model.number="watermarkConfig.imageHeight" type="number" min="10"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">透明度 <span class="text-blue-600 font-semibold">{{ Math.round(watermarkConfig.opacity * 100) }}%</span></label>
+                  <input v-model.number="watermarkConfig.opacity" type="range" min="0.05" max="1" step="0.05"
+                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">水印位置</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button v-for="pos in watermarkPositions" :key="pos.value" @click="watermarkConfig.position = pos.value"
+                      :class="['p-2 rounded-lg text-xs font-medium transition border',
+                        watermarkConfig.position === pos.value
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300']">
+                      {{ pos.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="watermarkConfig.position !== 'center' && watermarkConfig.position !== 'tile'" class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">水平边距 (px)</label>
+                    <input v-model.number="watermarkConfig.marginX" type="number" min="0"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">垂直边距 (px)</label>
+                    <input v-model.number="watermarkConfig.marginY" type="number" min="0"
+                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+
+                <div v-if="watermarkConfig.position === 'tile'">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">平铺间距 (px)</label>
+                  <input v-model.number="watermarkConfig.tileGap" type="number" min="50"
+                    class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" v-model="watermarkConfig.smartMode" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                  <span class="text-sm text-gray-700">智能模式</span>
+                  <span class="text-xs text-gray-400">自动调整水印颜色以适应图片内容</span>
+                </label>
+              </div>
+
+              <div class="mt-6 flex space-x-3">
+                <button @click="saveWatermarkConfig"
+                  class="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+                  保存设置
+                </button>
+                <button @click="previewWatermark"
+                  :disabled="watermarkPreviewLoading"
+                  class="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                  <span v-if="watermarkPreviewLoading" class="flex items-center space-x-1">
+                    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>生成中...</span>
+                  </span>
+                  <span v-else>预览效果</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center space-x-2">
+                  <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  <span>模板管理</span>
+                </h3>
+                <button @click="openCreateWatermarkTemplate"
+                  class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition flex items-center space-x-1">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>新建模板</span>
+                </button>
+              </div>
+
+              <div v-if="watermarkTemplates.length === 0" class="text-center py-10 text-gray-400 text-sm">
+                暂无模板
+              </div>
+              <div v-else class="space-y-3">
+                <div class="mb-3">
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">系统模板</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div v-for="t in watermarkTemplates.filter(t => t.isSystem)" :key="t.id"
+                      class="p-3 rounded-xl border border-gray-200 hover:border-blue-300 transition cursor-pointer group"
+                      @click="applyWatermarkTemplate(t)">
+                      <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-gray-800 truncate">{{ t.name }}</p>
+                          <p class="text-xs text-gray-400 mt-0.5">
+                            {{ t.type === 'text' ? '文字' : '图片' }} · {{ watermarkPositionLabel(t.position) }}
+                          </p>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                          <span class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">系统</span>
+                          <button @click.stop="applyWatermarkTemplate(t)"
+                            class="p-1 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition" title="应用">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="t.type === 'text'" class="mt-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 truncate">
+                        {{ t.textContent }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="watermarkMyTemplates.length > 0">
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">我的模板</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div v-for="t in watermarkMyTemplates" :key="t.id"
+                      class="p-3 rounded-xl border border-gray-200 hover:border-blue-300 transition cursor-pointer group"
+                      @click="applyWatermarkTemplate(t)">
+                      <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium text-gray-800 truncate">{{ t.name }}</p>
+                          <p class="text-xs text-gray-400 mt-0.5">
+                            {{ t.type === 'text' ? '文字' : '图片' }} · {{ watermarkPositionLabel(t.position) }}
+                          </p>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                          <button @click.stop="openEditWatermarkTemplate(t)"
+                            class="p-1 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition" title="编辑">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button @click.stop="confirmDeleteWatermarkTemplate(t)"
+                            class="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition" title="删除">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="t.type === 'text'" class="mt-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 truncate">
+                        {{ t.textContent }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4">预览</h3>
+              <div class="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden relative">
+                <img v-if="watermarkPreviewUrl" :src="watermarkPreviewUrl" class="w-full h-full object-contain" />
+                <div v-else class="text-center text-gray-400">
+                  <svg class="w-12 h-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p class="text-sm">点击"预览效果"查看</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1238,6 +1532,25 @@
               </div>
             </div>
           </div>
+          <div class="border-t border-gray-100 pt-4">
+            <label class="flex items-center space-x-2 cursor-pointer mb-3">
+              <input type="checkbox" v-model="uploadAddWatermark" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+              <span class="text-sm font-medium text-gray-700">上传时添加水印</span>
+            </label>
+            <div v-if="uploadAddWatermark">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">选择水印模板</label>
+              <select v-model="uploadWatermarkTemplateId"
+                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option :value="null">使用默认配置</option>
+                <optgroup label="系统模板">
+                  <option v-for="t in watermarkTemplates.filter(t => t.isSystem)" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </optgroup>
+                <optgroup v-if="watermarkMyTemplates.length > 0" label="我的模板">
+                  <option v-for="t in watermarkMyTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3 sticky bottom-0 bg-white">
           <button @click="showUploadModal = false"
@@ -1337,7 +1650,7 @@
             <span v-if="currentPicture.authorNickname" class="mx-1">·</span>
             {{ formatTime(currentPicture.createTime) }} · {{ formatSize(currentPicture.size) }}
           </p>
-          <div v-if="currentPicture.userId === currentUser?.id" class="mb-3">
+          <div v-if="currentPicture.userId === currentUser?.id" class="mb-3 flex items-center space-x-2 flex-wrap gap-y-2">
             <button @click="togglePicturePublic"
               :class="['inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition',
                 currentPicture.isPublic ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">
@@ -1349,6 +1662,28 @@
               </svg>
               <span>{{ currentPicture.isPublic ? '公开' : '私密' }}</span>
             </button>
+            <span :class="['inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium',
+              currentPicture.hasWatermark ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500']">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              <span>{{ currentPicture.hasWatermark ? '已加水印' : '未加水印' }}</span>
+            </span>
+            <button v-if="!currentPicture.hasWatermark" @click="addWatermarkToCurrentPicture"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-xs font-medium hover:shadow-md transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>加水印</span>
+            </button>
+            <button v-if="currentPicture.hasWatermark" @click="removeWatermarkFromCurrentPicture"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>移除水印</span>
+            </button>
+            <p v-if="currentPicture.hasWatermark && !currentPicture.originalUrl" class="text-[10px] text-amber-500 mt-0.5">无原图备份，无法移除水印</p>
           </div>
           <div class="flex items-center space-x-4 mb-5 pb-4 border-b border-gray-100">
             <button @click="toggleLike" class="flex items-center space-x-1.5 group transition">
@@ -1731,6 +2066,149 @@
       </div>
     </div>
 
+    <!-- Batch Watermark Modal -->
+    <div v-if="showBatchWatermarkModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showBatchWatermarkModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative transform transition-all">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">批量添加水印</h3>
+          <button @click="showBatchWatermarkModal = false" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-4">
+          <p class="text-sm text-gray-500">已选择 {{ selectedPictureIds.length }} 张图片，将为它们添加水印：</p>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">选择水印模板</label>
+            <select v-model="batchWatermarkTemplateId"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+              <option :value="null">使用默认配置</option>
+              <optgroup label="系统模板">
+                <option v-for="t in watermarkTemplates.filter(t => t.isSystem)" :key="t.id" :value="t.id">{{ t.name }}</option>
+              </optgroup>
+              <optgroup v-if="watermarkMyTemplates.length > 0" label="我的模板">
+                <option v-for="t in watermarkMyTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
+              </optgroup>
+            </select>
+          </div>
+          <div v-if="batchWatermarkProgress.show" class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600">处理进度</span>
+              <span class="font-medium text-violet-600">{{ batchWatermarkProgress.current }} / {{ batchWatermarkProgress.total }}</span>
+            </div>
+            <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-violet-500 to-purple-600 rounded-full transition-all duration-300"
+                :style="{ width: (batchWatermarkProgress.total > 0 ? (batchWatermarkProgress.current / batchWatermarkProgress.total * 100) : 0) + '%' }"></div>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+          <button @click="showBatchWatermarkModal = false"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">取消</button>
+          <button @click="doBatchWatermark" :disabled="batchWatermarkProgress.show"
+            :class="['px-5 py-2 rounded-lg font-medium text-sm transition',
+              batchWatermarkProgress.show ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:shadow-lg']">
+            确认添加
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Watermark Template Modal -->
+    <div v-if="showWatermarkTemplateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showWatermarkTemplateModal = false"></div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative transform transition-all max-h-[85vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <h3 class="text-lg font-bold text-gray-800">{{ editingWatermarkTemplate ? '编辑模板' : '新建模板' }}</h3>
+          <button @click="showWatermarkTemplateModal = false" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">模板名称 <span class="text-red-500">*</span></label>
+            <input v-model="watermarkTemplateForm.name" type="text" placeholder="输入模板名称"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">水印类型</label>
+            <div class="grid grid-cols-2 gap-3">
+              <button @click="watermarkTemplateForm.type = 'text'"
+                :class="['p-2 rounded-lg border-2 text-center transition text-sm',
+                  watermarkTemplateForm.type === 'text' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600']">
+                文字水印
+              </button>
+              <button @click="watermarkTemplateForm.type = 'image'"
+                :class="['p-2 rounded-lg border-2 text-center transition text-sm',
+                  watermarkTemplateForm.type === 'image' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600']">
+                图片水印
+              </button>
+            </div>
+          </div>
+          <div v-if="watermarkTemplateForm.type === 'text'">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">水印内容</label>
+            <input v-model="watermarkTemplateForm.textContent" type="text" placeholder="输入水印文字"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div v-if="watermarkTemplateForm.type === 'image'">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">水印图片URL</label>
+            <input v-model="watermarkTemplateForm.imageUrl" type="text" placeholder="输入图片URL"
+              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div v-if="watermarkTemplateForm.type === 'text'">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">字体大小</label>
+              <input v-model.number="watermarkTemplateForm.fontSize" type="number" min="8" max="120"
+                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div v-if="watermarkTemplateForm.type === 'text'">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">字体颜色</label>
+              <div class="flex items-center space-x-2">
+                <input type="color" v-model="watermarkTemplateForm.fontColor"
+                  class="w-8 h-8 rounded border border-gray-200 cursor-pointer" />
+                <input v-model="watermarkTemplateForm.fontColor" type="text"
+                  class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">透明度 <span class="text-blue-600 font-semibold">{{ Math.round(watermarkTemplateForm.opacity * 100) }}%</span></label>
+            <input v-model.number="watermarkTemplateForm.opacity" type="range" min="0.05" max="1" step="0.05"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">水印位置</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button v-for="pos in watermarkPositions" :key="pos.value" @click="watermarkTemplateForm.position = pos.value"
+                :class="['p-1.5 rounded-lg text-xs font-medium transition border',
+                  watermarkTemplateForm.position === pos.value
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300']">
+                {{ pos.label }}
+              </button>
+            </div>
+          </div>
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input type="checkbox" v-model="watermarkTemplateForm.smartMode" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+            <span class="text-sm text-gray-700">智能模式</span>
+          </label>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3 sticky bottom-0 bg-white">
+          <button @click="showWatermarkTemplateModal = false"
+            class="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm">取消</button>
+          <button @click="saveWatermarkTemplate" :disabled="!watermarkTemplateForm.name.trim()"
+            :class="['px-5 py-2 rounded-lg font-medium text-sm transition',
+              watermarkTemplateForm.name.trim() ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-lg' : 'bg-gray-200 text-gray-400 cursor-not-allowed']">
+            确认
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Generic Confirm Modal -->
     <div v-if="confirmModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="confirmModal.show = false"></div>
@@ -1821,6 +2299,7 @@ const tabs = [
   { id: 'pictures', name: '图片墙' },
   { id: 'albums', name: '专辑' },
   { id: 'tags', name: '主题词' },
+  { id: 'watermark', name: '水印' },
   { id: 'recycle', name: '回收站' },
   { id: 'stats', name: '统计' },
   { id: 'shares', name: '我的分享' }
@@ -2005,6 +2484,30 @@ const selectedPictureIds = ref([])
 const recycleMultiSelectMode = ref(false)
 const selectedRecyclePictureIds = ref([])
 
+// Watermark
+const watermarkConfig = reactive({
+  id: null, userId: null, type: 'text', textContent: '版权所有', fontFamily: 'SansSerif',
+  fontSize: 20, fontColor: '#FFFFFF', opacity: 0.6, imageUrl: '', imageWidth: null, imageHeight: null,
+  position: 'bottom_right', marginX: 20, marginY: 20, tileGap: 150, smartMode: true, enabled: false,
+  createTime: null, updateTime: null
+})
+const watermarkTemplates = ref([])
+const watermarkMyTemplates = ref([])
+const showWatermarkTemplateModal = ref(false)
+const editingWatermarkTemplate = ref(null)
+const watermarkTemplateForm = reactive({
+  name: '', type: 'text', textContent: '', fontFamily: 'SansSerif', fontSize: 20, fontColor: '#FFFFFF',
+  opacity: 0.6, imageUrl: '', imageWidth: null, imageHeight: null, position: 'bottom_right',
+  marginX: 20, marginY: 20, tileGap: 150, smartMode: true
+})
+const watermarkPreviewUrl = ref('')
+const watermarkPreviewLoading = ref(false)
+const showBatchWatermarkModal = ref(false)
+const batchWatermarkTemplateId = ref(null)
+const batchWatermarkProgress = reactive({ show: false, current: 0, total: 0 })
+const uploadAddWatermark = ref(false)
+const uploadWatermarkTemplateId = ref(null)
+
 // Toast
 const toast = reactive({ show: false, message: '', type: 'success' })
 const showToast = (message, type = 'success') => {
@@ -2040,6 +2543,7 @@ const handleUploadClick = () => {
     openLoginModal()
     return
   }
+  fetchWatermarkTemplates()
   showUploadModal.value = true
 }
 
@@ -2074,6 +2578,7 @@ const handleFileDrop = (e) => {
 const resetUploadForm = () => {
   uploadFile.value = null; uploadPreview.value = ''; uploadFileName.value = ''
   uploadAlbumIds.value = []; uploadTagInput.value = ''; uploading.value = false
+  uploadAddWatermark.value = false; uploadWatermarkTemplateId.value = null
 }
 const toggleUploadTag = (name) => {
   const cur = uploadTagInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean)
@@ -2090,6 +2595,12 @@ const doUpload = async () => {
     uploadAlbumIds.value.forEach(id => fd.append('albumIds', id))
     const tagList = uploadTagInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean)
     tagList.forEach(t => fd.append('tags', t))
+    if (uploadAddWatermark.value) {
+      fd.append('addWatermark', 'true')
+      if (uploadWatermarkTemplateId.value) {
+        fd.append('templateId', uploadWatermarkTemplateId.value)
+      }
+    }
     const res = await api.post('/upload', fd)
     if (res.data.success) {
       showToast('上传成功！')
@@ -3083,6 +3594,262 @@ const getRoleBadgeClass = (role) => {
 const displayedAlbums = computed(() => {
   return albumCategory.value === 'created' ? createdAlbums.value : collaborationAlbums.value
 })
+
+const watermarkPositions = [
+  { value: 'top_left', label: '左上角' },
+  { value: 'top_right', label: '右上角' },
+  { value: 'bottom_left', label: '左下角' },
+  { value: 'bottom_right', label: '右下角' },
+  { value: 'center', label: '居中' },
+  { value: 'tile', label: '平铺' }
+]
+
+const watermarkPositionLabel = (pos) => {
+  const found = watermarkPositions.find(p => p.value === pos)
+  return found ? found.label : pos || ''
+}
+
+const fetchWatermarkConfig = async () => {
+  try {
+    const res = await api.get('/watermark/config')
+    if (res.data.success && res.data.data) {
+      const data = res.data.data
+      Object.keys(watermarkConfig).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          watermarkConfig[key] = data[key]
+        }
+      })
+    }
+  } catch (e) {}
+}
+
+const saveWatermarkConfig = async () => {
+  try {
+    const res = await api.post('/watermark/config', { ...watermarkConfig })
+    if (res.data.success) {
+      showToast('水印配置已保存')
+      const data = res.data.data
+      Object.keys(watermarkConfig).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          watermarkConfig[key] = data[key]
+        }
+      })
+    } else {
+      showToast(res.data.message || '保存失败', 'error')
+    }
+  } catch (e) { showToast('保存失败', 'error') }
+}
+
+const fetchWatermarkTemplates = async () => {
+  try {
+    const [allRes, myRes] = await Promise.all([
+      api.get('/watermark/templates'),
+      api.get('/watermark/templates/mine')
+    ])
+    if (allRes.data.success) watermarkTemplates.value = allRes.data.data || []
+    if (myRes.data.success) watermarkMyTemplates.value = myRes.data.data || []
+  } catch (e) {}
+}
+
+const applyWatermarkTemplate = (template) => {
+  watermarkConfig.type = template.type || 'text'
+  watermarkConfig.textContent = template.textContent || ''
+  watermarkConfig.fontFamily = template.fontFamily || 'SansSerif'
+  watermarkConfig.fontSize = template.fontSize || 20
+  watermarkConfig.fontColor = template.fontColor || '#FFFFFF'
+  watermarkConfig.opacity = template.opacity || 0.6
+  watermarkConfig.imageUrl = template.imageUrl || ''
+  watermarkConfig.imageWidth = template.imageWidth
+  watermarkConfig.imageHeight = template.imageHeight
+  watermarkConfig.position = template.position || 'bottom_right'
+  watermarkConfig.marginX = template.marginX || 20
+  watermarkConfig.marginY = template.marginY || 20
+  watermarkConfig.tileGap = template.tileGap || 150
+  watermarkConfig.smartMode = template.smartMode !== false
+  showToast(`已应用模板「${template.name}」`)
+}
+
+const openCreateWatermarkTemplate = () => {
+  editingWatermarkTemplate.value = null
+  watermarkTemplateForm.name = ''
+  watermarkTemplateForm.type = watermarkConfig.type || 'text'
+  watermarkTemplateForm.textContent = watermarkConfig.textContent || ''
+  watermarkTemplateForm.fontFamily = watermarkConfig.fontFamily || 'SansSerif'
+  watermarkTemplateForm.fontSize = watermarkConfig.fontSize || 20
+  watermarkTemplateForm.fontColor = watermarkConfig.fontColor || '#FFFFFF'
+  watermarkTemplateForm.opacity = watermarkConfig.opacity || 0.6
+  watermarkTemplateForm.imageUrl = watermarkConfig.imageUrl || ''
+  watermarkTemplateForm.imageWidth = watermarkConfig.imageWidth
+  watermarkTemplateForm.imageHeight = watermarkConfig.imageHeight
+  watermarkTemplateForm.position = watermarkConfig.position || 'bottom_right'
+  watermarkTemplateForm.marginX = watermarkConfig.marginX || 20
+  watermarkTemplateForm.marginY = watermarkConfig.marginY || 20
+  watermarkTemplateForm.tileGap = watermarkConfig.tileGap || 150
+  watermarkTemplateForm.smartMode = watermarkConfig.smartMode !== false
+  showWatermarkTemplateModal.value = true
+}
+
+const openEditWatermarkTemplate = (template) => {
+  editingWatermarkTemplate.value = template
+  watermarkTemplateForm.name = template.name || ''
+  watermarkTemplateForm.type = template.type || 'text'
+  watermarkTemplateForm.textContent = template.textContent || ''
+  watermarkTemplateForm.fontFamily = template.fontFamily || 'SansSerif'
+  watermarkTemplateForm.fontSize = template.fontSize || 20
+  watermarkTemplateForm.fontColor = template.fontColor || '#FFFFFF'
+  watermarkTemplateForm.opacity = template.opacity || 0.6
+  watermarkTemplateForm.imageUrl = template.imageUrl || ''
+  watermarkTemplateForm.imageWidth = template.imageWidth
+  watermarkTemplateForm.imageHeight = template.imageHeight
+  watermarkTemplateForm.position = template.position || 'bottom_right'
+  watermarkTemplateForm.marginX = template.marginX || 20
+  watermarkTemplateForm.marginY = template.marginY || 20
+  watermarkTemplateForm.tileGap = template.tileGap || 150
+  watermarkTemplateForm.smartMode = template.smartMode !== false
+  showWatermarkTemplateModal.value = true
+}
+
+const saveWatermarkTemplate = async () => {
+  if (!watermarkTemplateForm.name.trim()) return
+  try {
+    let res
+    if (editingWatermarkTemplate.value) {
+      res = await api.put(`/watermark/templates/${editingWatermarkTemplate.value.id}`, { ...watermarkTemplateForm })
+    } else {
+      res = await api.post('/watermark/templates', { ...watermarkTemplateForm })
+    }
+    if (res.data.success) {
+      showToast(editingWatermarkTemplate.value ? '模板已更新' : '模板已创建')
+      showWatermarkTemplateModal.value = false
+      await fetchWatermarkTemplates()
+    } else {
+      showToast(res.data.message || '操作失败', 'error')
+    }
+  } catch (e) { showToast('操作失败', 'error') }
+}
+
+const confirmDeleteWatermarkTemplate = (template) => {
+  openConfirm({
+    title: `删除模板"${template.name}"?`,
+    message: '删除后无法恢复。',
+    type: 'danger',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/watermark/templates/${template.id}`)
+        if (res.data.success) {
+          showToast('模板已删除')
+          confirmModal.show = false
+          await fetchWatermarkTemplates()
+        } else showToast(res.data.message || '删除失败', 'error')
+      } catch (e) { showToast('删除失败', 'error') }
+    }
+  })
+}
+
+const uploadWatermarkImage = async (e) => {
+  const f = e.target.files[0]
+  if (!f) return
+  try {
+    const fd = new FormData()
+    fd.append('file', f)
+    const res = await api.post('/watermark/upload-watermark-image', fd)
+    if (res.data.success) {
+      watermarkConfig.imageUrl = res.data.data
+      showToast('水印图片已上传')
+    } else {
+      showToast(res.data.message || '上传失败', 'error')
+    }
+  } catch (e) { showToast('上传失败', 'error') }
+}
+
+const previewWatermark = async () => {
+  watermarkPreviewLoading.value = true
+  try {
+    const sampleCanvas = document.createElement('canvas')
+    sampleCanvas.width = 800
+    sampleCanvas.height = 600
+    const ctx = sampleCanvas.getContext('2d')
+    const gradient = ctx.createLinearGradient(0, 0, 800, 600)
+    gradient.addColorStop(0, '#667eea')
+    gradient.addColorStop(1, '#764ba2')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 800, 600)
+    ctx.fillStyle = '#fff'
+    ctx.font = '20px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('示例图片', 400, 300)
+    const blob = await new Promise(resolve => sampleCanvas.toBlob(resolve, 'image/png'))
+    const fd = new FormData()
+    fd.append('file', blob, 'preview_sample.png')
+    const res = await api.post('/watermark/preview', fd)
+    if (res.data.success) {
+      watermarkPreviewUrl.value = res.data.data
+    } else {
+      showToast(res.data.message || '预览生成失败', 'error')
+    }
+  } catch (e) { showToast('预览生成失败', 'error') }
+  finally { watermarkPreviewLoading.value = false }
+}
+
+const addWatermarkToCurrentPicture = async () => {
+  try {
+    const res = await api.post(`/pictures/${currentPicture.value.id}/add-watermark`)
+    if (res.data.success) {
+      showToast('水印已添加')
+      currentPicture.value = res.data.data
+      await fetchAll()
+    } else {
+      showToast(res.data.message || '添加失败', 'error')
+    }
+  } catch (e) { showToast('添加失败', 'error') }
+}
+
+const removeWatermarkFromCurrentPicture = async () => {
+  openConfirm({
+    title: '移除水印？',
+    message: '将恢复原图，移除已添加的水印。',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.post(`/pictures/${currentPicture.value.id}/remove-watermark`)
+        if (res.data.success) {
+          showToast('水印已移除')
+          confirmModal.show = false
+          currentPicture.value = res.data.data
+          await fetchAll()
+        } else {
+          showToast(res.data.message || '移除失败', 'error')
+        }
+      } catch (e) { showToast('移除失败', 'error') }
+    }
+  })
+}
+
+const doBatchWatermark = async () => {
+  if (selectedPictureIds.value.length === 0) return
+  batchWatermarkProgress.show = true
+  batchWatermarkProgress.current = 0
+  batchWatermarkProgress.total = selectedPictureIds.value.length
+  let successCount = 0
+  for (const pid of selectedPictureIds.value) {
+    try {
+      const params = {}
+      if (batchWatermarkTemplateId.value) params.templateId = batchWatermarkTemplateId.value
+      await api.post(`/pictures/${pid}/add-watermark`, null, { params })
+      successCount++
+    } catch (e) {}
+    batchWatermarkProgress.current++
+  }
+  showToast(`已完成 ${successCount}/${selectedPictureIds.value.length} 张图片的水印添加`)
+  showBatchWatermarkModal.value = false
+  batchWatermarkProgress.show = false
+  batchWatermarkProgress.current = 0
+  batchWatermarkProgress.total = 0
+  selectedPictureIds.value = []
+  multiSelectMode.value = false
+  await fetchAll()
+}
+
 const fetchAll = async () => {
   await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchAlbumsByCategory(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites(), fetchUnreadCount()])
 }
@@ -3097,6 +3864,7 @@ watch(activeTab, async (newVal) => {
     await fetchAlbumsByCategory()
   }
   if (newVal === 'tags') await fetchTags()
+  if (newVal === 'watermark') { await fetchWatermarkConfig(); await fetchWatermarkTemplates() }
   if (newVal === 'stats') { await fetchAlbums(); await fetchTags(); await fetchStats() }
   if (newVal === 'shares') await fetchShares()
   if (newVal === 'discover') await fetchDiscoverPictures()
