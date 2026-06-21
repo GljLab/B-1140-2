@@ -379,6 +379,8 @@ const props = defineProps({
  imageUrl: { type: String, default: '' },
  imageId: { type: [Number, String], default: null },
  imageName: { type: String, default: 'image' },
+ imageAlbumIds: { type: Array, default: () => [] },
+ imageTagNames: { type: Array, default: () => [] },
  api: { type: Object, default: null }
 });
 const emit = defineEmits(['update:visible', 'saved', 'close']);
@@ -549,8 +551,10 @@ const loadImage = () => {
  });
  };
  img.onerror = () => {
- // Try without crossOrigin for same-origin images
+ const ts = Date.now();
+ const separator = props.imageUrl.includes('?') ? '&' : '?';
  const img2 = new Image();
+ img2.crossOrigin = 'anonymous';
  img2.onload = () => {
  originalImage.value = img2;
  canvasWidth.value = img2.width;
@@ -569,7 +573,7 @@ const loadImage = () => {
  }
  });
  };
- img2.src = props.imageUrl;
+ img2.src = props.imageUrl + separator + '_t=' + ts;
  };
  img.src = props.imageUrl;
 };
@@ -1146,39 +1150,45 @@ const blobToFile = (blob, fileName) => {
 };
 // Save
 const doSave = async (mode) => {
+  let mimeType = 'image/png';
+  let quality = undefined;
+  const nameVal = props.imageName || 'image.png';
+  if (nameVal.match(/\.(jpg|jpeg)$/i)) {
+    mimeType = 'image/jpeg';
+    quality = 0.92;
+  }
   try {
     showSaveOptions.value = false;
     saving.value = true;
     saveStatus.value = '正在生成编辑图片...';
     const finalCanvas = generateFinalCanvas();
-    const mimeType = 'image/jpeg';
-    const quality = 0.92;
-    // Get blob from canvas
     const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, mimeType, quality));
     if (!blob) throw new Error('生成图片失败');
     const fileName = mode === 'overwrite' ? props.imageName : newFileName.value;
     const file = blobToFile(blob, fileName);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', fileName);
+    props.imageAlbumIds.forEach(id => formData.append('albumIds', id));
+    props.imageTagNames.forEach(t => formData.append('tags', t));
     saveStatus.value = '正在上传到服务器...';
     const apiObj = props.api || axios;
-    let res;
-    if (mode === 'overwrite' && props.imageId) {
-      formData.append('replaceId', props.imageId);
-      res = await apiObj.post('/pictures/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-    } else {
-      res = await apiObj.post('/pictures/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-    }
+    const res = await apiObj.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     if (res.data?.success) {
+      const newPictureData = res.data.data;
+      if (mode === 'overwrite' && props.imageId) {
+        saveStatus.value = '正在替换原图...';
+        try {
+          await apiObj.delete(`/delete/${props.imageId}`);
+        } catch (delErr) {
+          console.error('Delete old picture error:', delErr);
+        }
+      }
       saveStatus.value = '保存成功！';
       setTimeout(() => {
         saving.value = false;
-        emit('saved', { mode: mode, data: res.data.data, newPicture: mode === 'new' });
+        emit('saved', { mode: mode, data: newPictureData, newPicture: mode === 'new' });
         emit('update:visible', false);
         emit('close');
       }, 500);
@@ -1189,13 +1199,16 @@ const doSave = async (mode) => {
     console.error('Save error:', e);
     saving.value = false;
     saveStatus.value = '';
-    // Fallback: download locally
     if (confirm('上传失败，是否下载到本地？')) {
-      const finalCanvas = generateFinalCanvas();
-      const link = document.createElement('a');
-      link.download = mode === 'new' ? newFileName.value : props.imageName;
-      link.href = finalCanvas.toDataURL(mimeType, quality);
-      link.click();
+      try {
+        const finalCanvas = generateFinalCanvas();
+        const link = document.createElement('a');
+        link.download = mode === 'new' ? newFileName.value : props.imageName;
+        link.href = finalCanvas.toDataURL(mimeType === 'image/jpeg' ? 'image/jpeg' : 'image/png', quality || 0.92);
+        link.click();
+      } catch (downloadErr) {
+        console.error('Download error:', downloadErr);
+      }
     }
   }
 };

@@ -2330,6 +2330,8 @@
       :imageUrl="currentPicture.url"
       :imageId="currentPicture.id"
       :imageName="currentPicture.name"
+      :imageAlbumIds="(currentPicture.albums || []).map(a => a.id)"
+      :imageTagNames="(currentPicture.tags || []).map(t => t.name)"
       :api="api"
       @saved="onEditorSaved"
       @close="onEditorClosed"
@@ -3099,22 +3101,20 @@ const openImageEditor = () => {
 }
 const onEditorSaved = async (result) => {
   showImageEditor.value = false
-  if (result?.newPicture) {
-    showToast('已另存为成功', 'success')
+  if (result?.mode === 'overwrite') {
+    showToast('图片编辑保存成功', 'success')
   } else {
-    showToast('图片编辑成功', 'success')
-    // 更新当前图片信息
-    if (result?.data) {
-      currentPicture.value = result.data
-    }
+    showToast('已另存为新图片', 'success')
   }
   await fetchAll()
-  // 重新打开详情
-  setTimeout(() => {
-    if (currentPicture.value.id && result?.data?.id) {
+  if (result?.data?.id) {
+    currentPicture.value = result.data
+    setTimeout(() => {
       viewPicture(result.data)
-    }
-  }, 300)
+    }, 300)
+  } else {
+    showPictureDetail.value = false
+  }
 }
 const onEditorClosed = () => {
   showImageEditor.value = false
