@@ -12,7 +12,7 @@ public interface DedupWhitelistRepository extends JpaRepository<DedupWhitelist, 
 
     @Query("SELECT w FROM DedupWhitelist w WHERE w.userId = :userId " +
            "AND ((w.pictureId1 = :pid1 AND w.pictureId2 = :pid2) " +
-           "OR (w.pictureId1 = :pid2 AND w.pictureId2 = :pid1)")
+           "OR (w.pictureId1 = :pid2 AND w.pictureId2 = :pid1))")
     DedupWhitelist findByUserAndPicturePair(@Param("userId") Long userId,
                                         @Param("pid1") Long pid1,
                                         @Param("pid2") Long pid2);

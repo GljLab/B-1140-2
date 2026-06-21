@@ -3651,7 +3651,7 @@ const batchAddSelectedToWhitelist = async () => {
     const pics = g.pictures || []
     for (let i = 0; i < pics.length; i++) {
       for (let j = i + 1; j < pics.length; j++) {
-        try { await api.post('/dedup/whitelist/add', { pictureIds: [pics[i].id, pics[j].id]); total++ } catch {}
+        try { await api.post('/dedup/whitelist/add', { pictureIds: [pics[i].id, pics[j].id] }); total++ } catch {}
       }
     }
   }
