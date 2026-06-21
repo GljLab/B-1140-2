@@ -1683,6 +1683,13 @@
               </svg>
               <span>移除水印</span>
             </button>
+            <button @click="openImageEditor"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg text-xs font-medium hover:shadow-md transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>编辑</span>
+            </button>
             <p v-if="currentPicture.hasWatermark && !currentPicture.originalUrl" class="text-[10px] text-amber-500 mt-0.5">无原图备份，无法移除水印</p>
           </div>
           <div class="flex items-center space-x-4 mb-5 pb-4 border-b border-gray-100">
@@ -2284,12 +2291,24 @@
         </div>
       </div>
     </transition>
+
+    <!-- Image Editor -->
+    <ImageEditor
+      v-model:visible="showImageEditor"
+      :imageUrl="currentPicture.url"
+      :imageId="currentPicture.id"
+      :imageName="currentPicture.name"
+      :api="api"
+      @saved="onEditorSaved"
+      @close="onEditorClosed"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
 import axios from 'axios'
+import ImageEditor from './components/ImageEditor.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -3006,6 +3025,39 @@ const currentPicture = ref({})
 const editingPictureFields = ref(false)
 const editPictureAlbumIds = ref([])
 const editPictureTagInput = ref('')
+
+// Image Editor
+const showImageEditor = ref(false)
+const openImageEditor = () => {
+  showPictureDetail.value = false
+  showImageEditor.value = true
+}
+const onEditorSaved = async (result) => {
+  showImageEditor.value = false
+  if (result?.newPicture) {
+    showToast('已另存为成功', 'success')
+  } else {
+    showToast('图片编辑成功', 'success')
+    // 更新当前图片信息
+    if (result?.data) {
+      currentPicture.value = result.data
+    }
+  }
+  await fetchAll()
+  // 重新打开详情
+  setTimeout(() => {
+    if (currentPicture.value.id && result?.data?.id) {
+      viewPicture(result.data)
+    }
+  }, 300)
+}
+const onEditorClosed = () => {
+  showImageEditor.value = false
+  // 重新打开详情页
+  if (currentPicture.value.id) {
+    showPictureDetail.value = true
+  }
+}
 
 const fetchDiscoverPictures = async () => {
   loading.value = true
