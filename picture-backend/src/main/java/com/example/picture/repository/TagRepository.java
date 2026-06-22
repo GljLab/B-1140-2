@@ -25,4 +25,7 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     Optional<Tag> findByIdAndUserId(Long id, Long userId);
 
     long countByUserId(Long userId);
+
+    @Query("SELECT t FROM Tag t WHERE t.userId = :userId AND LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<Tag> findByNameContainingAndUserId(@Param("name") String name, @Param("userId") Long userId);
 }

@@ -27,4 +27,12 @@ public class PictureDTO {
     private long favoriteCount;
     private Boolean isLiked;
     private Boolean isFavorited;
+    private Integer width;
+    private Integer height;
+    private Date shootTime;
+    private String dominantColor;
+    private Double latitude;
+    private Double longitude;
+    private Boolean hasLocation;
+    private Double similarity;
 }

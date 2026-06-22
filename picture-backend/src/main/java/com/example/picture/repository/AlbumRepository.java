@@ -30,4 +30,7 @@ public interface AlbumRepository extends JpaRepository<Album, Long> {
 
     @Query("SELECT DISTINCT a FROM Album a LEFT JOIN FETCH a.pictures WHERE a.userId = :userId ORDER BY a.displayOrder ASC, a.createTime ASC")
     List<Album> findByUserIdWithPictures(@Param("userId") Long userId);
+
+    @Query("SELECT a FROM Album a WHERE a.userId = :userId AND LOWER(a.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<Album> findByNameContainingAndUserId(@Param("name") String name, @Param("userId") Long userId);
 }

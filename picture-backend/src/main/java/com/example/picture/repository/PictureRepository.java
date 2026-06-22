@@ -71,4 +71,37 @@ public interface PictureRepository extends JpaRepository<Picture, Long> {
 
     @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.tags WHERE p.userId = :userId AND p.deleted = false")
     List<Picture> findByUserIdWithTags(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.tags t WHERE p.userId = :userId AND p.deleted = false AND LOWER(t.name) LIKE LOWER(CONCAT('%', :tagName, '%'))")
+    List<Picture> findByTagNameContainingAndUserId(@Param("tagName") String tagName, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.albums a WHERE p.userId = :userId AND p.deleted = false AND LOWER(a.name) LIKE LOWER(CONCAT('%', :albumName, '%'))")
+    List<Picture> findByAlbumNameContainingAndUserId(@Param("albumName") String albumName, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.dominantColor IN :colors")
+    List<Picture> findByDominantColorInAndUserId(@Param("colors") List<String> colors, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.shootTime BETWEEN :startDate AND :endDate")
+    List<Picture> findByShootTimeBetweenAndUserId(@Param("startDate") java.util.Date startDate, @Param("endDate") java.util.Date endDate, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.width BETWEEN :minWidth AND :maxWidth AND p.height BETWEEN :minHeight AND :maxHeight")
+    List<Picture> findByDimensionsBetweenAndUserId(@Param("minWidth") Integer minWidth, @Param("maxWidth") Integer maxWidth, @Param("minHeight") Integer minHeight, @Param("maxHeight") Integer maxHeight, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.size BETWEEN :minSize AND :maxSize")
+    List<Picture> findBySizeBetweenAndUserId(@Param("minSize") Long minSize, @Param("maxSize") Long maxSize, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.hasLocation = true")
+    List<Picture> findByHasLocationTrueAndUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.tags t WHERE p.userId = :userId AND p.deleted = false AND t.id IN :tagIds")
+    List<Picture> findByTagIdsInAndUserId(@Param("tagIds") List<Long> tagIds, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.albums a WHERE p.userId = :userId AND p.deleted = false AND a.id IN :albumIds")
+    List<Picture> findByAlbumIdsInAndUserId(@Param("albumIds") List<Long> albumIds, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.perceptualHash IS NOT NULL")
+    List<Picture> findByUserIdWithPerceptualHash(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.albums LEFT JOIN FETCH p.tags WHERE p.id = :id AND p.userId = :userId AND p.deleted = false")
+    Picture findByIdWithDetails(@Param("id") Long id, @Param("userId") Long userId);
 }

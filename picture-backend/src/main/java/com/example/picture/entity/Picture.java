@@ -35,6 +35,14 @@ public class Picture {
     @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private Boolean isPublic = false;
 
+    private Date shootTime;
+    private String dominantColor;
+    private Double latitude;
+    private Double longitude;
+
+    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    private Boolean hasLocation = false;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "picture_album",

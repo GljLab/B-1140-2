@@ -588,6 +588,13 @@ public class PictureService {
         dto.setFavoriteCount(interactionService.getFavoriteCount(picture.getId()));
         dto.setIsLiked(interactionService.isLiked(picture.getId(), currentUserId));
         dto.setIsFavorited(interactionService.isFavorited(picture.getId(), currentUserId));
+        dto.setWidth(picture.getWidth());
+        dto.setHeight(picture.getHeight());
+        dto.setShootTime(picture.getShootTime());
+        dto.setDominantColor(picture.getDominantColor());
+        dto.setLatitude(picture.getLatitude());
+        dto.setLongitude(picture.getLongitude());
+        dto.setHasLocation(Boolean.TRUE.equals(picture.getHasLocation()));
 
         if (Boolean.TRUE.equals(picture.getDeleted()) && picture.getDeleteTime() != null) {
             Calendar cal = Calendar.getInstance();
