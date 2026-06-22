@@ -56,6 +56,27 @@
               <span>{{ tab.name }}</span>
             </span>
           </button>
+          <div v-if="isLoggedIn" class="w-px h-6 bg-gray-200 mx-1"></div>
+          <button v-if="isLoggedIn" @click="handlePrivateSpaceTabClick"
+            :class="['px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              activeTab === 'private-space' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50']">
+            <span class="flex items-center space-x-1.5">
+              <svg v-if="!privateSpaceConfig?.disguiseType" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <svg v-else-if="privateSpaceConfig?.disguiseType === 'recycle'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <svg v-else-if="privateSpaceConfig?.disguiseType === 'help'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg v-else-if="privateSpaceConfig?.disguiseType === 'settings'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>{{ privateSpaceTabName }}</span>
+            </span>
+          </button>
         </nav>
         <div class="flex items-center space-x-3">
           <div class="relative" v-if="isLoggedIn">
@@ -491,6 +512,15 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
               <span>批量归专辑</span>
+            </span>
+          </button>
+          <button @click="confirmBatchMoveToPrivate"
+            class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>批量移入保密空间</span>
             </span>
           </button>
           <button @click="openExportOptions('pictures', null)"
@@ -2088,6 +2118,41 @@
           </div>
         </div>
       </div>
+
+      <!-- PRIVATE SPACE -->
+      <div v-else-if="isLoggedIn && activeTab === 'private-space'">
+        <div v-if="!showPrivateSpaceSettings">
+          <PrivateSpacePage
+            ref="privateSpacePageRef"
+            @view-picture="viewPrivatePicture"
+            @open-settings="showPrivateSpaceSettings = true"
+            @locked="handlePrivateSpaceLocked"
+            @toast="showToast"
+            @confirm="handlePrivateSpaceConfirm"
+          />
+        </div>
+        <div v-else>
+          <div class="mb-6">
+            <button @click="showPrivateSpaceSettings = false"
+              class="inline-flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600 transition mb-3">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>返回保密空间</span>
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800">保密空间设置</h2>
+          </div>
+          <PrivateSpaceSettings
+            :config="privateSpaceConfig"
+            @change-password="privatePasswordMode = 'change'; showPrivatePasswordModal = true"
+            @reset-password="privatePasswordMode = 'reset'; showPrivatePasswordModal = true"
+            @set-security-question="privatePasswordMode = 'security-question'; showPrivatePasswordModal = true"
+            @lock-now="handlePrivateSpaceLocked"
+            @updated="onPrivateSettingsUpdated"
+            @toast="showToast"
+          />
+        </div>
+      </div>
     </main>
 
     <!-- Auth Modal -->
@@ -2379,6 +2444,20 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               <span>编辑</span>
+            </button>
+            <button v-if="!currentPicture.isPrivatePicture" @click="moveCurrentPictureToPrivate"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-xs font-medium hover:shadow-md transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>移入保密空间</span>
+            </button>
+            <button v-if="currentPicture.isPrivatePicture" @click="moveCurrentPictureFromPrivate"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-600 rounded-lg text-xs font-medium hover:bg-yellow-100 transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              </svg>
+              <span>移出保密空间</span>
             </button>
             <p v-if="currentPicture.hasWatermark && !currentPicture.originalUrl" class="text-[10px] text-amber-500 mt-0.5">无原图备份，无法移除水印</p>
           </div>
@@ -3102,6 +3181,16 @@
       </div>
     </div>
 
+    <!-- Private Space Password Modal -->
+    <PrivatePasswordModal
+      v-if="showPrivatePasswordModal"
+      :mode="privatePasswordMode"
+      @success="handlePrivatePasswordSuccess"
+      @forgot-password="handlePrivateForgotPassword"
+      @close="showPrivatePasswordModal = false"
+      @locked="handlePrivateSpaceLocked"
+    />
+
     <!-- Toast -->
     <transition enter-active-class="transform ease-out duration-300 transition" enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
       enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100" leave-to-class="opacity-0">
@@ -3229,6 +3318,9 @@ import ImageCompare from './components/ImageCompare.vue'
 import CollageEditor from './components/CollageEditor.vue'
 import SlideshowEditor from './components/SlideshowEditor.vue'
 import SlideshowPlayer from './components/SlideshowPlayer.vue'
+import PrivatePasswordModal from './components/PrivatePasswordModal.vue'
+import PrivateSpacePage from './components/PrivateSpacePage.vue'
+import PrivateSpaceSettings from './components/PrivateSpaceSettings.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -3316,6 +3408,7 @@ const doLogin = async () => {
       showAuthModal.value = false
       showToast('登录成功！')
       await fetchAll()
+      fetchPrivateSpaceConfig()
     } else {
       authError.value = res.data.message || '登录失败'
     }
@@ -3614,6 +3707,266 @@ const batchWatermarkTemplateId = ref(null)
 const batchWatermarkProgress = reactive({ show: false, current: 0, total: 0 })
 const uploadAddWatermark = ref(false)
 const uploadWatermarkTemplateId = ref(null)
+
+// Private Space
+const privateSpaceConfig = ref(null)
+const showPrivatePasswordModal = ref(false)
+const privatePasswordMode = ref('verify')
+const privateSpacePageRef = ref(null)
+const showPrivateSpaceSettings = ref(false)
+const privateDisguiseClickCount = ref(0)
+const privateDisguiseClickTimer = ref(null)
+const autoLockTimer = ref(null)
+const lastActivityTime = ref(Date.now())
+const isInPrivateSpace = ref(false)
+
+const handlePrivateSpaceTabClick = () => {
+  if (!privateSpaceConfig.value) {
+    fetchPrivateSpaceConfig().then(() => {
+      handlePrivateSpaceTabClick()
+    })
+    return
+  }
+  
+  if (!privateSpaceConfig.value.disguiseType) {
+    // 正常模式，直接进入
+    openPrivateSpace()
+  } else {
+    // 伪装模式，需要快速点击3次
+    privateDisguiseClickCount.value++
+    if (privateDisguiseClickTimer.value) {
+      clearTimeout(privateDisguiseClickTimer.value)
+    }
+    privateDisguiseClickTimer.value = setTimeout(() => {
+      privateDisguiseClickCount.value = 0
+      // 普通点击，跳转到对应的假页面
+      if (privateSpaceConfig.value.disguiseType === 'recycle') {
+        activeTab.value = 'recycle'
+      } else if (privateSpaceConfig.value.disguiseType === 'settings') {
+        // 伪装成设置，显示设置页面
+        showPrivateSpaceSettings.value = true
+        activeTab.value = 'private-space'
+      } else {
+        // 帮助中心或其他，显示提示
+        showToast('功能开发中...', 'info')
+      }
+    }, 800)
+    
+    if (privateDisguiseClickCount.value >= 3) {
+      privateDisguiseClickCount.value = 0
+      if (privateDisguiseClickTimer.value) {
+        clearTimeout(privateDisguiseClickTimer.value)
+      }
+      openPrivateSpace()
+    }
+  }
+}
+
+const privateSpaceTabName = computed(() => {
+  if (!privateSpaceConfig.value?.disguiseType) return '保密空间'
+  const map = { recycle: '回收站', help: '帮助中心', settings: '设置' }
+  return map[privateSpaceConfig.value.disguiseType] || '保密空间'
+})
+
+const fetchPrivateSpaceConfig = async () => {
+  try {
+    const res = await api.get('/private-space/config')
+    if (res.data.success) {
+      privateSpaceConfig.value = res.data.data
+    }
+  } catch (e) {}
+}
+
+const openPrivateSpace = async () => {
+  if (!privateSpaceConfig.value) {
+    await fetchPrivateSpaceConfig()
+  }
+  if (!privateSpaceConfig.value?.hasPassword) {
+    privatePasswordMode.value = 'set'
+    showPrivatePasswordModal.value = true
+  } else if (privateSpaceConfig.value?.isLocked) {
+    if (privateSpaceConfig.value?.guestModeEnabled && privateSpaceConfig.value?.hasSecurityQuestion) {
+      privatePasswordMode.value = 'security-verify'
+      showPrivatePasswordModal.value = true
+    } else {
+      privatePasswordMode.value = 'verify'
+      showPrivatePasswordModal.value = true
+    }
+  } else {
+    activeTab.value = 'private-space'
+  }
+}
+
+const handlePrivatePasswordSuccess = async (data) => {
+  if (privatePasswordMode.value === 'set') {
+    showToast('密码设置成功')
+    privateSpaceConfig.value = data
+    activeTab.value = 'private-space'
+    isInPrivateSpace.value = true
+    startAutoLockTimer()
+  } else if (privatePasswordMode.value === 'verify') {
+    showToast('验证成功')
+    privateSpaceConfig.value = data
+    activeTab.value = 'private-space'
+    isInPrivateSpace.value = true
+    startAutoLockTimer()
+  } else if (privatePasswordMode.value === 'change') {
+    showToast('密码修改成功')
+    privateSpaceConfig.value = data
+  } else if (privatePasswordMode.value === 'reset') {
+    showToast('密码重置成功')
+    privateSpaceConfig.value = data
+  } else if (privatePasswordMode.value === 'security-question') {
+    showToast('安全问题设置成功')
+    privateSpaceConfig.value = data
+  } else if (privatePasswordMode.value === 'security-verify') {
+    privatePasswordMode.value = 'verify'
+    return
+  }
+  showPrivatePasswordModal.value = false
+}
+
+const handlePrivateForgotPassword = () => {
+  privatePasswordMode.value = 'reset'
+}
+
+const handlePrivateSpaceLocked = () => {
+  privateSpaceConfig.value = { ...privateSpaceConfig.value, isLocked: true }
+  isInPrivateSpace.value = false
+  stopAutoLockTimer()
+  activeTab.value = 'pictures'
+  showToast('保密空间已锁定')
+}
+
+const startAutoLockTimer = () => {
+  stopAutoLockTimer()
+  if (!privateSpaceConfig.value?.autoLockTime || privateSpaceConfig.value.autoLockTime <= 0) {
+    return
+  }
+  lastActivityTime.value = Date.now()
+  autoLockTimer.value = setInterval(() => {
+    const now = Date.now()
+    const elapsed = (now - lastActivityTime.value) / 1000 / 60
+    if (elapsed >= privateSpaceConfig.value.autoLockTime) {
+      if (isInPrivateSpace.value && !privateSpaceConfig.value?.isLocked) {
+        handlePrivateSpaceLocked()
+      }
+    }
+  }, 10000)
+}
+
+const stopAutoLockTimer = () => {
+  if (autoLockTimer.value) {
+    clearInterval(autoLockTimer.value)
+    autoLockTimer.value = null
+  }
+}
+
+const handleUserActivity = () => {
+  if (isInPrivateSpace.value && autoLockTimer.value) {
+    lastActivityTime.value = Date.now()
+  }
+}
+
+const moveToPrivate = async (pictureId) => {
+  try {
+    const res = await api.post(`/private-space/pictures/${pictureId}/move-in`)
+    if (res.data.success) {
+      showToast('已移入保密空间')
+      await fetchAll()
+      closePictureDetail()
+      return true
+    } else {
+      showToast(res.data.message || '操作失败', 'error')
+      return false
+    }
+  } catch (e) {
+    showToast('操作失败', 'error')
+    return false
+  }
+}
+
+const batchMoveToPrivate = async (pictureIds) => {
+  try {
+    const res = await api.post('/private-space/pictures/batch-move-in', {
+      pictureIds: pictureIds
+    })
+    if (res.data.success) {
+      showToast(`成功移入 ${res.data.data} 张图片到保密空间`)
+      await fetchAll()
+      return true
+    } else {
+      showToast(res.data.message || '操作失败', 'error')
+      return false
+    }
+  } catch (e) {
+    showToast('操作失败', 'error')
+    return false
+  }
+}
+
+const handlePrivateSpaceConfirm = (config) => {
+  openConfirm(config)
+}
+
+const viewPrivatePicture = async (pic, isPrivate) => {
+  loading.value = true
+  try {
+    const res = await api.get(`/private-space/pictures/${pic.id}`)
+    if (res.data.success) {
+      currentPicture.value = res.data.data
+      currentPicture.value.isPrivatePicture = true
+      showPictureDetail.value = true
+      await fetchPictureComments(pic.id)
+    } else {
+      showToast(res.data.message || '图片不存在或无权限查看', 'error')
+    }
+  } catch (e) { showToast('加载图片详情失败', 'error') } finally { loading.value = false }
+}
+
+const onPrivateSettingsUpdated = (config) => {
+  privateSpaceConfig.value = config
+}
+
+const moveCurrentPictureToPrivate = () => {
+  openConfirm({
+    title: '移入保密空间',
+    message: `确定要将"${currentPicture.value.name}"移入保密空间吗？移入后图片将从普通列表中隐藏。`,
+    type: 'warning',
+    onConfirm: async () => {
+      const success = await moveToPrivate(currentPicture.value.id)
+      if (success) {
+        confirmModal.show = false
+      }
+    }
+  })
+}
+
+const moveCurrentPictureFromPrivate = () => {
+  openConfirm({
+    title: '移出保密空间',
+    message: `确定要将"${currentPicture.value.name}"移出保密空间吗？移出后图片将在普通列表中显示。`,
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const res = await api.post(`/private-space/pictures/${currentPicture.value.id}/move-out`)
+        if (res.data.success) {
+          showToast('已移出保密空间')
+          confirmModal.show = false
+          closePictureDetail()
+          if (privateSpacePageRef.value) {
+            privateSpacePageRef.value.refresh()
+          }
+          await fetchAll()
+        } else {
+          showToast(res.data.message || '操作失败', 'error')
+        }
+      } catch (e) {
+        showToast('操作失败', 'error')
+      }
+    }
+  })
+}
 
 // Toast
 const toast = reactive({ show: false, message: '', type: 'success' })
@@ -4797,6 +5150,22 @@ const confirmBatchDelete = () => {
   })
 }
 
+const confirmBatchMoveToPrivate = () => {
+  openConfirm({
+    title: `批量移入保密空间？`,
+    message: `确定要将 ${selectedPictureIds.value.length} 张图片移入保密空间吗？移入后图片将从普通列表中隐藏。`,
+    type: 'warning',
+    onConfirm: async () => {
+      const success = await batchMoveToPrivate(selectedPictureIds.value)
+      if (success) {
+        confirmModal.show = false
+        selectedPictureIds.value = []
+        multiSelectMode.value = false
+      }
+    }
+  })
+}
+
 // Recycle bin operations
 const confirmRestorePicture = (pic) => {
   openConfirm({
@@ -5502,17 +5871,23 @@ onMounted(async () => {
     if (loggedIn) {
       await fetchAll()
       startUnreadCountTimer()
+      fetchPrivateSpaceConfig()
     }
   }
   if (typeof window !== 'undefined') {
     document.addEventListener('click', handleClickOutside)
+    document.addEventListener('mousemove', handleUserActivity)
+    document.addEventListener('keydown', handleUserActivity)
   }
 })
 
 onUnmounted(() => {
   stopUnreadCountTimer()
+  stopAutoLockTimer()
   if (typeof window !== 'undefined') {
     document.removeEventListener('click', handleClickOutside)
+    document.removeEventListener('mousemove', handleUserActivity)
+    document.removeEventListener('keydown', handleUserActivity)
   }
 })
 </script>
