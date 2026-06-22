@@ -35,6 +35,9 @@
               <svg v-if="tab.id === 'collage'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
               </svg>
+              <svg v-if="tab.id === 'slideshow'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+              </svg>
               <svg v-if="tab.id === 'recycle'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
@@ -827,6 +830,86 @@
           @back="activeTab = 'pictures'; collageInitialPictures = []"
           @add-pictures="showCollagePicturePicker = true"
           @toast="showToast" />
+      </div>
+
+      <!-- SLIDESHOW -->
+      <div v-else-if="isLoggedIn && activeTab === 'slideshow'">
+        <div v-if="!showSlideshowEditor">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">幻灯片</h2>
+              <p class="text-sm text-gray-500 mt-1">制作动态壁纸和幻灯片播放</p>
+            </div>
+            <button @click="openSlideshowEditor()"
+              class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition text-sm font-medium">
+              <span class="flex items-center space-x-1.5">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>制作幻灯片</span>
+              </span>
+            </button>
+          </div>
+          <div v-if="mySlideshows.length === 0" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div class="text-6xl mb-4">🎬</div>
+            <h3 class="text-xl font-medium text-gray-500">还没有幻灯片</h3>
+            <p class="text-sm text-gray-400 mt-2">点击"制作幻灯片"开始创作</p>
+            <button @click="openSlideshowEditor()"
+              class="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition text-sm font-medium">
+              立即制作
+            </button>
+          </div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div v-for="ss in mySlideshows" :key="ss.id"
+              class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+              <div class="aspect-video relative overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 cursor-pointer"
+                @click="playSlideshow(ss)">
+                <img v-if="ss.coverUrl" :src="ss.coverUrl" class="w-full h-full object-cover transform group-hover:scale-105 transition duration-500" />
+                <div v-else class="w-full h-full flex items-center justify-center">
+                  <svg class="w-16 h-16 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                  <div class="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                    <svg class="w-7 h-7 text-blue-600 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                </div>
+                <div class="absolute top-2 left-2">
+                  <span v-if="ss.status === 1" class="inline-flex items-center px-2 py-0.5 bg-green-500/90 text-white text-xs rounded-md font-medium">已发布</span>
+                  <span v-else class="inline-flex items-center px-2 py-0.5 bg-gray-500/90 text-white text-xs rounded-md font-medium">草稿</span>
+                </div>
+                <div class="absolute bottom-2 left-2">
+                  <span class="text-xs text-white/80">{{ ss.itemCount || 0 }} 张图片</span>
+                </div>
+              </div>
+              <div class="p-4">
+                <h3 class="text-sm font-medium text-gray-800 truncate mb-1">{{ ss.title }}</h3>
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-400">{{ formatTime(ss.createTime) }}</span>
+                  <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
+                    <button @click.stop="openSlideshowEditor(ss)"
+                      class="p-1 hover:bg-gray-100 rounded transition" title="编辑">
+                      <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button @click.stop="deleteSlideshow(ss.id)"
+                      class="p-1 hover:bg-red-50 rounded transition" title="删除">
+                      <svg class="w-4 h-4 text-gray-500 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <SlideshowEditor v-else
+          :editing-slideshow="editingSlideshow"
+          :all-pictures="pictures"
+          :all-albums="allAlbums"
+          @back="closeSlideshowEditor"
+          @play="playSlideshow"
+          @saved="onSlideshowSaved" />
       </div>
 
       <!-- WATERMARK CONFIG -->
@@ -3127,6 +3210,10 @@
         </div>
       </div>
     </div>
+    <SlideshowPlayer v-if="showSlideshowPlayer"
+      :slideshow-data="playingSlideshowData"
+      :share-token="playingSlideshowToken"
+      @close="closeSlideshowPlayer" />
   </div>
 </template>
 
@@ -3140,6 +3227,8 @@ import StoryEditor from './components/StoryEditor.vue'
 import StoryDetail from './components/StoryDetail.vue'
 import ImageCompare from './components/ImageCompare.vue'
 import CollageEditor from './components/CollageEditor.vue'
+import SlideshowEditor from './components/SlideshowEditor.vue'
+import SlideshowPlayer from './components/SlideshowPlayer.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -3152,6 +3241,7 @@ const tabs = [
   { id: 'stories', name: '故事' },
   { id: 'tags', name: '主题词' },
   { id: 'collage', name: '拼图' },
+  { id: 'slideshow', name: '幻灯片' },
   { id: 'watermark', name: '水印' },
   { id: 'backup', name: '备份与恢复' },
   { id: 'recycle', name: '回收站' },
@@ -3447,6 +3537,59 @@ const collageEditorRef = ref(null)
 const collageInitialPictures = ref([])
 const showCollagePicturePicker = ref(false)
 const showToolsMenu = ref(false)
+const mySlideshows = ref([])
+const showSlideshowEditor = ref(false)
+const editingSlideshow = ref(null)
+const showSlideshowPlayer = ref(false)
+const playingSlideshowData = ref(null)
+const playingSlideshowToken = ref(null)
+
+const fetchMySlideshows = async () => {
+  try {
+    const res = await api.get('/slideshows/my')
+    if (res.data.success) mySlideshows.value = res.data.data
+  } catch (e) {}
+}
+const openSlideshowEditor = (slideshow = null) => {
+  editingSlideshow.value = slideshow
+  showSlideshowEditor.value = true
+}
+const closeSlideshowEditor = () => {
+  showSlideshowEditor.value = false
+  editingSlideshow.value = null
+}
+const onSlideshowSaved = (data) => {
+  fetchMySlideshows()
+}
+const playSlideshow = (data) => {
+  playingSlideshowData.value = data
+  playingSlideshowToken.value = null
+  showSlideshowPlayer.value = true
+}
+const closeSlideshowPlayer = () => {
+  showSlideshowPlayer.value = false
+  playingSlideshowData.value = null
+  playingSlideshowToken.value = null
+}
+const deleteSlideshow = async (id) => {
+  openConfirm({
+    title: '删除幻灯片',
+    message: '确定要删除这个幻灯片吗？此操作不可恢复。',
+    onConfirm: async () => {
+      try {
+        const res = await api.delete('/slideshows/' + id)
+        if (res.data.success) {
+          showToast('删除成功')
+          fetchMySlideshows()
+        } else {
+          showToast(res.data.message || '删除失败', 'error')
+        }
+      } catch (e) {
+        showToast('删除失败', 'error')
+      }
+    }
+  })
+}
 
 // Watermark
 const watermarkConfig = reactive({
@@ -4128,6 +4271,14 @@ const parseHashRoute = () => {
       isSharePage.value = true
       currentShareToken.value = token
       loadSharePage(token)
+      return true
+    }
+  } else if (hash.startsWith('#/slideshow/')) {
+    const token = hash.replace('#/slideshow/', '')
+    if (token) {
+      playingSlideshowToken.value = token
+      playingSlideshowData.value = null
+      showSlideshowPlayer.value = true
       return true
     }
   } else if (hash.startsWith('#compare/')) {
@@ -5303,7 +5454,7 @@ const onStoryDeleted = () => {
 }
 
 const fetchAll = async () => {
-  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchAlbumsByCategory(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites(), fetchUnreadCount()])
+  await Promise.all([fetchPictures(), fetchRecycleBin(), fetchAlbums(), fetchAlbumsByCategory(), fetchTags(), fetchStats(), fetchShares(), fetchDiscoverPictures(), fetchMyFavorites(), fetchUnreadCount(), fetchMySlideshows()])
 }
 
 // Watch tab changes
@@ -5323,6 +5474,7 @@ watch(activeTab, async (newVal) => {
   if (newVal === 'shares') await fetchShares()
   if (newVal === 'discover') await fetchDiscoverPictures()
   if (newVal === 'favorites') await fetchMyFavorites()
+  if (newVal === 'slideshow') await fetchMySlideshows()
 })
 
 watch(isLoggedIn, async (newVal) => {
