@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
@@ -156,6 +156,29 @@ const securityAnswerInput = ref('')
 const errorMessage = ref('')
 const loading = ref(false)
 const remainingAttempts = ref(null)
+
+const resetForm = () => {
+  passwordInput.value = ''
+  confirmPasswordInput.value = ''
+  oldPasswordInput.value = ''
+  accountPasswordInput.value = ''
+  securityQuestion.value = ''
+  securityAnswerInput.value = ''
+  errorMessage.value = ''
+  remainingAttempts.value = null
+}
+
+watch(() => props.visible, (val) => {
+  if (val) {
+    resetForm()
+  }
+})
+
+onMounted(() => {
+  if (props.visible) {
+    resetForm()
+  }
+})
 
 const modalTitle = computed(() => {
   switch (props.mode) {
@@ -202,19 +225,6 @@ const submitButtonText = computed(() => {
 
 const securityAnswerLabel = computed(() => {
   return props.mode === 'security-question' ? '安全答案' : '您的答案'
-})
-
-watch(() => props.visible, (val) => {
-  if (val) {
-    passwordInput.value = ''
-    confirmPasswordInput.value = ''
-    oldPasswordInput.value = ''
-    accountPasswordInput.value = ''
-    securityQuestion.value = ''
-    securityAnswerInput.value = ''
-    errorMessage.value = ''
-    remainingAttempts.value = null
-  }
 })
 
 const handleClose = () => {

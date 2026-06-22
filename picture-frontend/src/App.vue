@@ -3184,6 +3184,7 @@
     <!-- Private Space Password Modal -->
     <PrivatePasswordModal
       v-if="showPrivatePasswordModal"
+      :visible="showPrivatePasswordModal"
       :mode="privatePasswordMode"
       @success="handlePrivatePasswordSuccess"
       @forgot-password="handlePrivateForgotPassword"
@@ -3720,15 +3721,12 @@ const autoLockTimer = ref(null)
 const lastActivityTime = ref(Date.now())
 const isInPrivateSpace = ref(false)
 
-const handlePrivateSpaceTabClick = () => {
+const handlePrivateSpaceTabClick = async () => {
   if (!privateSpaceConfig.value) {
-    fetchPrivateSpaceConfig().then(() => {
-      handlePrivateSpaceTabClick()
-    })
-    return
+    await fetchPrivateSpaceConfig()
   }
   
-  if (!privateSpaceConfig.value.disguiseType) {
+  if (!privateSpaceConfig.value?.disguiseType) {
     // 正常模式，直接进入
     openPrivateSpace()
   } else {
@@ -3773,8 +3771,28 @@ const fetchPrivateSpaceConfig = async () => {
     const res = await api.get('/private-space/config')
     if (res.data.success) {
       privateSpaceConfig.value = res.data.data
+    } else {
+      // API 返回失败，使用默认配置
+      privateSpaceConfig.value = {
+        hasPassword: false,
+        isLocked: true,
+        disguiseType: null,
+        autoLockTime: null,
+        guestModeEnabled: false,
+        hasSecurityQuestion: false
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    // API 调用异常，使用默认配置
+    privateSpaceConfig.value = {
+      hasPassword: false,
+      isLocked: true,
+      disguiseType: null,
+      autoLockTime: null,
+      guestModeEnabled: false,
+      hasSecurityQuestion: false
+    }
+  }
 }
 
 const openPrivateSpace = async () => {
@@ -3794,13 +3812,15 @@ const openPrivateSpace = async () => {
     }
   } else {
     activeTab.value = 'private-space'
+    isInPrivateSpace.value = true
+    startAutoLockTimer()
   }
 }
 
 const handlePrivatePasswordSuccess = async (data) => {
   if (privatePasswordMode.value === 'set') {
     showToast('密码设置成功')
-    privateSpaceConfig.value = data
+    privateSpaceConfig.value = { ...data, isLocked: false }
     activeTab.value = 'private-space'
     isInPrivateSpace.value = true
     startAutoLockTimer()
@@ -3815,7 +3835,10 @@ const handlePrivatePasswordSuccess = async (data) => {
     privateSpaceConfig.value = data
   } else if (privatePasswordMode.value === 'reset') {
     showToast('密码重置成功')
-    privateSpaceConfig.value = data
+    privateSpaceConfig.value = { ...data, isLocked: false }
+    activeTab.value = 'private-space'
+    isInPrivateSpace.value = true
+    startAutoLockTimer()
   } else if (privatePasswordMode.value === 'security-question') {
     showToast('安全问题设置成功')
     privateSpaceConfig.value = data
@@ -3877,7 +3900,20 @@ const moveToPrivate = async (pictureId) => {
       closePictureDetail()
       return true
     } else {
-      showToast(res.data.message || '操作失败', 'error')
+      const msg = res.data.message || '操作失败'
+      if (msg.includes('请先设置私密密码')) {
+        showToast('请先设置私密密码', 'warning')
+        await fetchPrivateSpaceConfig()
+        privatePasswordMode.value = 'set'
+        showPrivatePasswordModal.value = true
+        return false
+      } else if (msg.includes('已锁定')) {
+        showToast(msg, 'warning')
+        await fetchPrivateSpaceConfig()
+        openPrivateSpace()
+        return false
+      }
+      showToast(msg, 'error')
       return false
     }
   } catch (e) {
@@ -3896,7 +3932,20 @@ const batchMoveToPrivate = async (pictureIds) => {
       await fetchAll()
       return true
     } else {
-      showToast(res.data.message || '操作失败', 'error')
+      const msg = res.data.message || '操作失败'
+      if (msg.includes('请先设置私密密码')) {
+        showToast('请先设置私密密码', 'warning')
+        await fetchPrivateSpaceConfig()
+        privatePasswordMode.value = 'set'
+        showPrivatePasswordModal.value = true
+        return false
+      } else if (msg.includes('已锁定')) {
+        showToast(msg, 'warning')
+        await fetchPrivateSpaceConfig()
+        openPrivateSpace()
+        return false
+      }
+      showToast(msg, 'error')
       return false
     }
   } catch (e) {
