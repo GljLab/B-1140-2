@@ -29,6 +29,9 @@
               <svg v-if="tab.id === 'stories'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
+              <svg v-if="tab.id === 'notes'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
               <svg v-if="tab.id === 'tags'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
@@ -850,6 +853,15 @@
           @edit="handleEditStory"
           @view="handleViewStory"
           @delete="onStoryDeleted"
+        />
+      </div>
+
+      <!-- NOTES -->
+      <div v-else-if="isLoggedIn && activeTab === 'notes'">
+        <NoteList
+          ref="noteListRef"
+          @view-note="handleViewNote"
+          @refresh="fetchAll"
         />
       </div>
 
@@ -2397,7 +2409,7 @@
               <span>分享</span>
             </button>
           </div>
-          <p class="text-xs text-gray-500 mb-4">
+          <p class="text-xs text-gray-500 mb-3">
             <span v-if="currentPicture.authorNickname" class="inline-flex items-center space-x-1">
               <span class="w-4 h-4 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">{{ currentPicture.authorNickname.charAt(0).toUpperCase() }}</span>
               <span>{{ currentPicture.authorNickname }}</span>
@@ -2405,6 +2417,23 @@
             <span v-if="currentPicture.authorNickname" class="mx-1">·</span>
             {{ formatTime(currentPicture.createTime) }} · {{ formatSize(currentPicture.size) }}
           </p>
+          <div class="flex space-x-1 mb-4 border-b border-gray-100">
+            <button @click="pictureDetailTab = 'detail'"
+              :class="['px-4 py-2 text-sm font-medium transition border-b-2 -mb-px',
+                pictureDetailTab === 'detail'
+                  ? 'text-blue-600 border-blue-500'
+                  : 'text-gray-500 border-transparent hover:text-gray-700']">
+              详情
+            </button>
+            <button @click="pictureDetailTab = 'note'"
+              :class="['px-4 py-2 text-sm font-medium transition border-b-2 -mb-px',
+                pictureDetailTab === 'note'
+                  ? 'text-blue-600 border-blue-500'
+                  : 'text-gray-500 border-transparent hover:text-gray-700']">
+              笔记
+            </button>
+          </div>
+          <div v-if="pictureDetailTab === 'detail'">
           <div v-if="currentPicture.userId === currentUser?.id" class="mb-3 flex items-center space-x-2 flex-wrap gap-y-2">
             <button @click="togglePicturePublic"
               :class="['inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition',
@@ -2584,6 +2613,17 @@
               class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition">保存修改</button>
             <button @click="cancelEditPictureFields"
               class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">取消</button>
+          </div>
+          </div>
+          <div v-if="pictureDetailTab === 'note'" class="h-full">
+            <PictureNoteEditor
+              v-if="currentPicture.id"
+              ref="noteEditorRef"
+              :picture-id="currentPicture.id"
+              :picture-url="currentPicture.url"
+              :picture-name="currentPicture.name"
+              @navigate-to-picture="handleNavigateToPicture"
+            />
           </div>
         </div>
       </div>
@@ -3322,6 +3362,8 @@ import SlideshowPlayer from './components/SlideshowPlayer.vue'
 import PrivatePasswordModal from './components/PrivatePasswordModal.vue'
 import PrivateSpacePage from './components/PrivateSpacePage.vue'
 import PrivateSpaceSettings from './components/PrivateSpaceSettings.vue'
+import PictureNoteEditor from './components/PictureNoteEditor.vue'
+import NoteList from './components/NoteList.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -3332,6 +3374,7 @@ const tabs = [
   { id: 'timeline', name: '时光轴' },
   { id: 'albums', name: '专辑' },
   { id: 'stories', name: '故事' },
+  { id: 'notes', name: '笔记' },
   { id: 'tags', name: '主题词' },
   { id: 'collage', name: '拼图' },
   { id: 'slideshow', name: '幻灯片' },
@@ -4718,6 +4761,28 @@ const currentPicture = ref({})
 const editingPictureFields = ref(false)
 const editPictureAlbumIds = ref([])
 const editPictureTagInput = ref('')
+const pictureDetailTab = ref('detail')
+const noteEditorRef = ref(null)
+
+const handleViewNote = (note) => {
+  if (note?.pictureId) {
+    const pic = allPictures.value.find(p => p.id === note.pictureId)
+    if (pic) {
+      activeTab.value = 'pictures'
+      viewPicture(pic)
+      pictureDetailTab.value = 'note'
+    }
+  }
+}
+
+const handleNavigateToPicture = async (pictureId) => {
+  if (!pictureId) return
+  const pic = allPictures.value.find(p => p.id === pictureId)
+  if (pic) {
+    await viewPicture(pic)
+    pictureDetailTab.value = 'note'
+  }
+}
 
 // Image Editor
 const showImageEditor = ref(false)
@@ -4871,6 +4936,7 @@ const closePictureDetail = () => {
   editingPictureFields.value = false
   pictureComments.value = []
   newCommentContent.value = ''
+  pictureDetailTab.value = 'detail'
 }
 const startEditPictureFields = () => {
   editingPictureFields.value = true
