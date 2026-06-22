@@ -190,13 +190,13 @@ public class PictureService {
     public List<PictureDTO> listPictures(Long albumId, Long tagId, String keyword, Long userId) {
         List<Picture> pictures;
         if (albumId != null) {
-            pictures = pictureRepository.findByAlbumIdAndUserId(albumId, userId);
+            pictures = pictureRepository.findNonPrivateByAlbumIdAndUserId(albumId, userId);
         } else if (tagId != null) {
-            pictures = pictureRepository.findByTagIdAndUserId(tagId, userId);
+            pictures = pictureRepository.findNonPrivateByTagIdAndUserId(tagId, userId);
         } else if (keyword != null && !keyword.trim().isEmpty()) {
-            pictures = pictureRepository.findByNameContainingKeywordAndUserId(keyword.trim(), userId);
+            pictures = pictureRepository.findNonPrivateByNameContainingKeywordAndUserId(keyword.trim(), userId);
         } else {
-            pictures = pictureRepository.findByUserIdOrderByCreateTimeDesc(userId);
+            pictures = pictureRepository.findNonPrivateByUserIdOrderByCreateTimeDesc(userId);
         }
         return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
     }
@@ -211,7 +211,7 @@ public class PictureService {
         if (!isOwner && !isCollaborator) {
             throw new RuntimeException("无权限访问此专辑");
         }
-        List<Picture> pictures = pictureRepository.findByAlbumId(albumId);
+        List<Picture> pictures = pictureRepository.findNonPrivateByAlbumIdAndUserId(albumId, userId);
         return pictures.stream().map(p -> toDTO(p, userId)).collect(Collectors.toList());
     }
 
@@ -219,6 +219,9 @@ public class PictureService {
     public PictureDTO getPicture(Long id, Long userId) {
         Picture picture = pictureRepository.findById(id).orElse(null);
         if (picture == null || Boolean.TRUE.equals(picture.getDeleted())) {
+            throw new RuntimeException("图片不存在");
+        }
+        if (Boolean.TRUE.equals(picture.getIsPrivate()) && picture.getUserId().equals(userId)) {
             throw new RuntimeException("图片不存在");
         }
         boolean isOwner = picture.getUserId().equals(userId);
@@ -243,6 +246,9 @@ public class PictureService {
     public PictureDTO updatePicture(Long id, PictureUpdateRequest request, Long userId) {
         Picture picture = pictureRepository.findById(id).orElse(null);
         if (picture == null || !picture.getUserId().equals(userId)) {
+            throw new RuntimeException("图片不存在");
+        }
+        if (Boolean.TRUE.equals(picture.getIsPrivate())) {
             throw new RuntimeException("图片不存在");
         }
 
@@ -308,6 +314,9 @@ public class PictureService {
             return;
         }
         if (Boolean.TRUE.equals(picture.getDeleted())) {
+            return;
+        }
+        if (Boolean.TRUE.equals(picture.getIsPrivate())) {
             return;
         }
         for (Tag tag : picture.getTags()) {
@@ -577,6 +586,7 @@ public class PictureService {
         dto.setDeleted(picture.getDeleted());
         dto.setDeleteTime(picture.getDeleteTime());
         dto.setIsPublic(Boolean.TRUE.equals(picture.getIsPublic()));
+        dto.setIsPrivate(Boolean.TRUE.equals(picture.getIsPrivate()));
         dto.setUserId(picture.getUserId());
 
         userRepository.findById(picture.getUserId()).ifPresent(user -> {

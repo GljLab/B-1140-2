@@ -76,15 +76,15 @@ public class SearchService {
         request.setSearchType(searchType);
 
         if ("tag".equalsIgnoreCase(searchType)) {
-            return pictureRepository.findByTagNameContainingAndUserId(keyword, userId).stream()
+            return pictureRepository.findNonPrivateByTagNameContainingAndUserId(keyword, userId).stream()
                     .map(p -> pictureService.toDTO(p, userId))
                     .collect(Collectors.toList());
         } else if ("album".equalsIgnoreCase(searchType)) {
-            return pictureRepository.findByAlbumNameContainingAndUserId(keyword, userId).stream()
+            return pictureRepository.findNonPrivateByAlbumNameContainingAndUserId(keyword, userId).stream()
                     .map(p -> pictureService.toDTO(p, userId))
                     .collect(Collectors.toList());
         } else if ("color".equalsIgnoreCase(searchType)) {
-            return pictureRepository.findByDominantColorInAndUserId(Collections.singletonList(keyword), userId).stream()
+            return pictureRepository.findNonPrivateByDominantColorInAndUserId(Collections.singletonList(keyword), userId).stream()
                     .map(p -> pictureService.toDTO(p, userId))
                     .collect(Collectors.toList());
         } else if ("content".equalsIgnoreCase(searchType)) {
@@ -96,7 +96,7 @@ public class SearchService {
 
     @Transactional(readOnly = true)
     public List<PictureDTO> searchByContent(String contentKeyword, Long userId) {
-        return pictureRepository.findByTagNameContainingAndUserId(contentKeyword, userId).stream()
+        return pictureRepository.findNonPrivateByTagNameContainingAndUserId(contentKeyword, userId).stream()
                 .map(p -> pictureService.toDTO(p, userId))
                 .collect(Collectors.toList());
     }
@@ -109,7 +109,7 @@ public class SearchService {
         }
 
         String targetHash = targetPicture.getPerceptualHash();
-        List<Picture> allPictures = pictureRepository.findByUserIdWithPerceptualHash(userId);
+        List<Picture> allPictures = pictureRepository.findNonPrivateByUserIdWithPerceptualHash(userId);
 
         List<PictureDTO> similarPictures = allPictures.stream()
                 .filter(p -> !p.getId().equals(pictureId) && p.getPerceptualHash() != null)
@@ -221,6 +221,7 @@ public class SearchService {
 
         predicates.add(cb.equal(picture.get("userId"), userId));
         predicates.add(cb.isFalse(picture.get("deleted")));
+        predicates.add(cb.isFalse(picture.get("isPrivate")));
 
         if (request.getKeyword() != null && !request.getKeyword().trim().isEmpty()) {
             String keyword = "%" + request.getKeyword().toLowerCase() + "%";

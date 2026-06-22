@@ -60,10 +60,10 @@ public interface PictureRepository extends JpaRepository<Picture, Long> {
     @Query("SELECT p FROM Picture p WHERE p.id = :id AND p.userId = :userId AND p.deleted = true")
     Optional<Picture> findDeletedByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
-    @Query("SELECT p FROM Picture p WHERE p.isPublic = true AND p.deleted = false ORDER BY p.createTime DESC")
+    @Query("SELECT p FROM Picture p WHERE p.isPublic = true AND p.deleted = false AND p.isPrivate = false ORDER BY p.createTime DESC")
     List<Picture> findPublicPictures();
 
-    @Query("SELECT p FROM Picture p WHERE p.isPublic = true AND p.deleted = false AND p.userId = :userId ORDER BY p.createTime DESC")
+    @Query("SELECT p FROM Picture p WHERE p.isPublic = true AND p.deleted = false AND p.isPrivate = false AND p.userId = :userId ORDER BY p.createTime DESC")
     List<Picture> findPublicPicturesByUserId(@Param("userId") Long userId);
 
     @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.albums LEFT JOIN FETCH p.tags WHERE p.userId = :userId AND p.deleted = false ORDER BY p.createTime DESC")
@@ -99,9 +99,39 @@ public interface PictureRepository extends JpaRepository<Picture, Long> {
     @Query("SELECT DISTINCT p FROM Picture p JOIN p.albums a WHERE p.userId = :userId AND p.deleted = false AND a.id IN :albumIds")
     List<Picture> findByAlbumIdsInAndUserId(@Param("albumIds") List<Long> albumIds, @Param("userId") Long userId);
 
-    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.perceptualHash IS NOT NULL")
-    List<Picture> findByUserIdWithPerceptualHash(@Param("userId") Long userId);
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = false AND p.perceptualHash IS NOT NULL")
+    List<Picture> findNonPrivateByUserIdWithPerceptualHash(@Param("userId") Long userId);
 
     @Query("SELECT DISTINCT p FROM Picture p LEFT JOIN FETCH p.albums LEFT JOIN FETCH p.tags WHERE p.id = :id AND p.userId = :userId AND p.deleted = false")
     Picture findByIdWithDetails(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("SELECT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = false ORDER BY p.createTime DESC")
+    List<Picture> findNonPrivateByUserIdOrderByCreateTimeDesc(Long userId);
+
+    @Query("SELECT p FROM Picture p JOIN p.albums a WHERE a.id = :albumId AND p.userId = :userId AND p.deleted = false AND p.isPrivate = false ORDER BY p.createTime DESC")
+    List<Picture> findNonPrivateByAlbumIdAndUserId(@Param("albumId") Long albumId, @Param("userId") Long userId);
+
+    @Query("SELECT p FROM Picture p JOIN p.tags t WHERE t.id = :tagId AND p.userId = :userId AND p.deleted = false AND p.isPrivate = false ORDER BY p.createTime DESC")
+    List<Picture> findNonPrivateByTagIdAndUserId(@Param("tagId") Long tagId, @Param("userId") Long userId);
+
+    @Query("SELECT p FROM Picture p WHERE p.userId = :userId AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND p.deleted = false AND p.isPrivate = false ORDER BY p.createTime DESC")
+    List<Picture> findNonPrivateByNameContainingKeywordAndUserId(@Param("keyword") String keyword, @Param("userId") Long userId);
+
+    @Query("SELECT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = true ORDER BY p.createTime DESC")
+    List<Picture> findPrivateByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT p FROM Picture p WHERE p.id = :id AND p.userId = :userId AND p.deleted = false AND p.isPrivate = true")
+    Optional<Picture> findPrivateByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.tags t WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = false AND LOWER(t.name) LIKE LOWER(CONCAT('%', :tagName, '%'))")
+    List<Picture> findNonPrivateByTagNameContainingAndUserId(@Param("tagName") String tagName, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p JOIN p.albums a WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = false AND LOWER(a.name) LIKE LOWER(CONCAT('%', :albumName, '%'))")
+    List<Picture> findNonPrivateByAlbumNameContainingAndUserId(@Param("albumName") String albumName, @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = false AND p.dominantColor IN :colors")
+    List<Picture> findNonPrivateByDominantColorInAndUserId(@Param("colors") List<String> colors, @Param("userId") Long userId);
+
+    @Query("SELECT COUNT(p) FROM Picture p WHERE p.userId = :userId AND p.deleted = false AND p.isPrivate = true")
+    long countPrivateByUserId(@Param("userId") Long userId);
 }

@@ -20,6 +20,7 @@ public class PictureDTO {
     private Date deleteTime;
     private Integer remainingDays;
     private Boolean isPublic;
+    private Boolean isPrivate;
     private Long userId;
     private String authorNickname;
     private long likeCount;

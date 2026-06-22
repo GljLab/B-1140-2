@@ -35,6 +35,9 @@ public class Picture {
     @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private Boolean isPublic = false;
 
+    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    private Boolean isPrivate = false;
+
     private Date shootTime;
     private String dominantColor;
     private Double latitude;
