@@ -637,4 +637,315 @@ public class PictureService {
         dto.setCreateTime(album.getCreateTime());
         return dto;
     }
+
+    private static class RenameUndoRecord {
+        Long userId;
+        java.util.Map<Long, String> oldNames;
+        long expireTime;
+
+        RenameUndoRecord(Long userId, java.util.Map<Long, String> oldNames, long expireTime) {
+            this.userId = userId;
+            this.oldNames = oldNames;
+            this.expireTime = expireTime;
+        }
+    }
+
+    private final java.util.Map<String, RenameUndoRecord> undoStore = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public List<RenamePreviewItem> previewRename(BatchRenameRequest request, Long userId) {
+        if (request.getPictureIds() == null || request.getPictureIds().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<Picture> pictures = pictureRepository.findAllById(request.getPictureIds())
+                .stream()
+                .filter(p -> p.getUserId().equals(userId) && !Boolean.TRUE.equals(p.getDeleted()))
+                .collect(java.util.stream.Collectors.toList());
+
+        pictures.sort(Comparator.comparing(Picture::getCreateTime).reversed());
+
+        int indexStart = request.getIndexStart() != null ? request.getIndexStart() : 1;
+        int indexDigits = request.getIndexDigits() != null ? request.getIndexDigits() : 3;
+
+        java.util.Set<String> newNameSet = new java.util.HashSet<>();
+        java.util.Set<String> existingNames = pictureRepository.findNonPrivateByUserIdOrderByCreateTimeDesc(userId)
+                .stream()
+                .map(Picture::getName)
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<RenamePreviewItem> results = new java.util.ArrayList<>();
+
+        for (int i = 0; i < pictures.size(); i++) {
+            Picture pic = pictures.get(i);
+            RenamePreviewItem item = new RenamePreviewItem();
+            item.setPictureId(pic.getId());
+            item.setOldName(pic.getName());
+
+            String newName = generateNewName(pic, request, indexStart + i, indexDigits);
+            item.setNewName(newName);
+
+            boolean hasConflict = false;
+            String conflictReason = null;
+
+            if (newNameSet.contains(newName)) {
+                hasConflict = true;
+                conflictReason = "批量重命名结果中存在重名";
+            } else if (existingNames.contains(newName) && !newName.equals(pic.getName())) {
+                hasConflict = true;
+                conflictReason = "与其他图片名称冲突";
+            }
+
+            item.setHasConflict(hasConflict);
+            item.setConflictReason(conflictReason);
+
+            newNameSet.add(newName);
+            results.add(item);
+        }
+
+        return results;
+    }
+
+    private String generateNewName(Picture picture, BatchRenameRequest request, int index, int indexDigits) {
+        String originalName = picture.getName();
+        String baseName = originalName;
+        String extension = "";
+
+        int dotIndex = originalName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            baseName = originalName.substring(0, dotIndex);
+            extension = originalName.substring(dotIndex);
+        }
+
+        String result = baseName;
+
+        if (request.getTemplate() != null && !request.getTemplate().isEmpty()) {
+            result = applyTemplate(picture, request.getTemplate(), request.getCustomText(), index, indexDigits);
+        }
+
+        if (request.getFindText() != null && !request.getFindText().isEmpty()) {
+            if (Boolean.TRUE.equals(request.getUseRegex())) {
+                try {
+                    result = result.replaceAll(request.getFindText(), request.getReplaceText() != null ? request.getReplaceText() : "");
+                } catch (Exception ignored) {
+                }
+            } else {
+                String replaceText = request.getReplaceText() != null ? request.getReplaceText() : "";
+                result = result.replace(request.getFindText(), replaceText);
+            }
+        }
+
+        if (request.getCaseTransform() != null && !request.getCaseTransform().isEmpty()) {
+            result = applyCaseTransform(result, request.getCaseTransform());
+        }
+
+        if (result.isEmpty()) {
+            result = "untitled";
+        }
+
+        return result + extension;
+    }
+
+    private String applyTemplate(Picture picture, String template, String customText, int index, int indexDigits) {
+        String result = template;
+
+        result = result.replace("{index}", padNumber(index, indexDigits));
+
+        if (result.contains("{date}")) {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyyMMdd");
+            String dateStr = sdf.format(picture.getCreateTime() != null ? picture.getCreateTime() : new Date());
+            result = result.replace("{date}", dateStr);
+        }
+
+        if (result.contains("{album}")) {
+            String albumName = "";
+            if (picture.getAlbums() != null && !picture.getAlbums().isEmpty()) {
+                albumName = picture.getAlbums().iterator().next().getName();
+            }
+            result = result.replace("{album}", safeName(albumName));
+        }
+
+        if (result.contains("{tag}")) {
+            String tagName = "";
+            if (picture.getTags() != null && !picture.getTags().isEmpty()) {
+                tagName = picture.getTags().stream()
+                        .max(Comparator.comparing(Tag::getReferenceCount))
+                        .map(Tag::getName)
+                        .orElse("");
+            }
+            result = result.replace("{tag}", safeName(tagName));
+        }
+
+        if (result.contains("{原名}")) {
+            String originalName = picture.getName();
+            int dotIndex = originalName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                originalName = originalName.substring(0, dotIndex);
+            }
+            result = result.replace("{原名}", originalName);
+        }
+
+        if (customText != null && result.contains("{custom}")) {
+            result = result.replace("{custom}", safeName(customText));
+        }
+
+        return result;
+    }
+
+    private String safeName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
+    private String padNumber(int number, int digits) {
+        return String.format("%0" + digits + "d", number);
+    }
+
+    private String applyCaseTransform(String text, String transform) {
+        if (text == null || text.isEmpty()) return text;
+
+        switch (transform) {
+            case "upper":
+                return text.toUpperCase();
+            case "lower":
+                return text.toLowerCase();
+            case "capitalize":
+                if (text.length() <= 1) return text.toUpperCase();
+                return text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
+            case "camel":
+                return toCamelCase(text);
+            default:
+                return text;
+        }
+    }
+
+    private String toCamelCase(String text) {
+        if (text == null || text.isEmpty()) return text;
+
+        StringBuilder result = new StringBuilder();
+        boolean nextUpper = false;
+        boolean firstChar = true;
+
+        for (char c : text.toCharArray()) {
+            if (c == ' ' || c == '_' || c == '-') {
+                nextUpper = true;
+            } else {
+                if (firstChar) {
+                    result.append(Character.toLowerCase(c));
+                    firstChar = false;
+                } else if (nextUpper) {
+                    result.append(Character.toUpperCase(c));
+                    nextUpper = false;
+                } else {
+                    result.append(c);
+                }
+            }
+        }
+
+        return result.toString();
+    }
+
+    @Transactional
+    public RenameResultDTO batchRename(BatchRenameRequest request, Long userId) {
+        List<RenamePreviewItem> preview = previewRename(request, userId);
+
+        java.util.Map<Long, String> oldNames = new java.util.HashMap<>();
+        List<RenamePreviewItem> results = new java.util.ArrayList<>();
+        int successCount = 0;
+        int failCount = 0;
+
+        for (RenamePreviewItem item : preview) {
+            if (Boolean.TRUE.equals(item.getHasConflict())) {
+                failCount++;
+                results.add(item);
+                continue;
+            }
+
+            Picture picture = pictureRepository.findById(item.getPictureId()).orElse(null);
+            if (picture == null || !picture.getUserId().equals(userId)) {
+                failCount++;
+                item.setHasConflict(true);
+                item.setConflictReason("图片不存在或无权限");
+                results.add(item);
+                continue;
+            }
+
+            oldNames.put(picture.getId(), picture.getName());
+            picture.setName(item.getNewName());
+            pictureRepository.save(picture);
+            successCount++;
+            results.add(item);
+        }
+
+        String undoToken = null;
+        if (!oldNames.isEmpty()) {
+            undoToken = java.util.UUID.randomUUID().toString();
+            long expireTime = System.currentTimeMillis() + 24 * 60 * 60 * 1000;
+            undoStore.put(undoToken, new RenameUndoRecord(userId, oldNames, expireTime));
+        }
+
+        cleanExpiredUndoRecords();
+
+        RenameResultDTO resultDTO = new RenameResultDTO();
+        resultDTO.setSuccessCount(successCount);
+        resultDTO.setFailCount(failCount);
+        resultDTO.setResults(results);
+        resultDTO.setUndoToken(undoToken);
+        return resultDTO;
+    }
+
+    @Transactional
+    public RenameResultDTO undoRename(String undoToken, Long userId) {
+        RenameUndoRecord record = undoStore.get(undoToken);
+        if (record == null) {
+            throw new RuntimeException("撤销记录不存在或已过期");
+        }
+        if (!record.userId.equals(userId)) {
+            throw new RuntimeException("无权限执行此操作");
+        }
+        if (record.expireTime < System.currentTimeMillis()) {
+            undoStore.remove(undoToken);
+            throw new RuntimeException("撤销记录已过期");
+        }
+
+        List<RenamePreviewItem> results = new java.util.ArrayList<>();
+        int successCount = 0;
+        int failCount = 0;
+
+        for (java.util.Map.Entry<Long, String> entry : record.oldNames.entrySet()) {
+            RenamePreviewItem item = new RenamePreviewItem();
+            item.setPictureId(entry.getKey());
+
+            Picture picture = pictureRepository.findById(entry.getKey()).orElse(null);
+            if (picture == null || !picture.getUserId().equals(userId)) {
+                failCount++;
+                item.setOldName(entry.getValue());
+                item.setHasConflict(true);
+                item.setConflictReason("图片不存在或无权限");
+                results.add(item);
+                continue;
+            }
+
+            item.setOldName(picture.getName());
+            item.setNewName(entry.getValue());
+            item.setHasConflict(false);
+
+            picture.setName(entry.getValue());
+            pictureRepository.save(picture);
+            successCount++;
+            results.add(item);
+        }
+
+        undoStore.remove(undoToken);
+
+        RenameResultDTO resultDTO = new RenameResultDTO();
+        resultDTO.setSuccessCount(successCount);
+        resultDTO.setFailCount(failCount);
+        resultDTO.setResults(results);
+        return resultDTO;
+    }
+
+    private void cleanExpiredUndoRecords() {
+        long now = System.currentTimeMillis();
+        undoStore.entrySet().removeIf(entry -> entry.getValue().expireTime < now);
+    }
 }

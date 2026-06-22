@@ -216,4 +216,37 @@ public class PictureController {
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @PostMapping("/pictures/rename/preview")
+    public ResponseEntity<ApiResponse<List<RenamePreviewItem>>> previewRename(@RequestBody BatchRenameRequest request) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            List<RenamePreviewItem> result = pictureService.previewRename(request, userId);
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pictures/batch-rename")
+    public ResponseEntity<ApiResponse<RenameResultDTO>> batchRename(@RequestBody BatchRenameRequest request) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            RenameResultDTO result = pictureService.batchRename(request, userId);
+            return ResponseEntity.ok(ApiResponse.success("成功重命名 " + result.getSuccessCount() + " 张图片", result));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pictures/rename/undo")
+    public ResponseEntity<ApiResponse<RenameResultDTO>> undoRename(@RequestParam String undoToken) {
+        try {
+            Long userId = UserContext.getCurrentUserId();
+            RenameResultDTO result = pictureService.undoRename(undoToken, userId);
+            return ResponseEntity.ok(ApiResponse.success("成功撤销 " + result.getSuccessCount() + " 张图片的重命名", result));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+        }
+    }
 }

@@ -490,6 +490,15 @@
               <span>制作拼图</span>
             </span>
           </button>
+          <button @click="showBatchRenameModal = true"
+            class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
+            <span class="flex items-center space-x-1">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>批量重命名</span>
+            </span>
+          </button>
           <button @click="showBatchTagModal = true"
             class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition">
             <span class="flex items-center space-x-1">
@@ -3232,6 +3241,16 @@
       @locked="handlePrivateSpaceLocked"
     />
 
+    <!-- Batch Rename Modal -->
+    <BatchRenameModal
+      v-if="showBatchRenameModal"
+      :visible="showBatchRenameModal"
+      :picture-ids="selectedPictureIds"
+      @close="showBatchRenameModal = false"
+      @success="handleRenameSuccess"
+      @undo="handleRenameUndo"
+    />
+
     <!-- Toast -->
     <transition enter-active-class="transform ease-out duration-300 transition" enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
       enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100" leave-to-class="opacity-0">
@@ -3364,6 +3383,7 @@ import PrivateSpacePage from './components/PrivateSpacePage.vue'
 import PrivateSpaceSettings from './components/PrivateSpaceSettings.vue'
 import PictureNoteEditor from './components/PictureNoteEditor.vue'
 import NoteList from './components/NoteList.vue'
+import BatchRenameModal from './components/BatchRenameModal.vue'
 
 const api = axios.create({ baseURL: '/api', withCredentials: true })
 
@@ -4988,6 +5008,18 @@ const confirmDeletePicture = (pic) => {
 }
 
 // Batch operations
+const showBatchRenameModal = ref(false)
+const handleRenameSuccess = (result) => {
+  showToast(`成功重命名 ${result.successCount} 张图片`)
+  showBatchRenameModal.value = false
+  selectedPictureIds.value = []
+  fetchAll()
+}
+const handleRenameUndo = (result) => {
+  showToast(`已撤销 ${result.successCount} 张图片的重命名`)
+  fetchAll()
+}
+
 const showBatchTagModal = ref(false)
 const batchTagInput = ref('')
 const toggleBatchTag = (name) => {
